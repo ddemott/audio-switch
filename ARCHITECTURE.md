@@ -27,7 +27,7 @@ tests/
 - **Interfaces:** `IProfileStore`, `IProfileManager`, `IAudioDeviceService`, `IVolumeController`, `ISpatialAudioController`, `IHotkeyService`, `IRegistryStore`.
 
 ### AudioSwitch.Audio — platform
-Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig` for default-device switching), `VolumeController`, `SpatialAudioController` (stub). These may throw HRESULT exceptions; the applier's `TryStep` converts them to data.
+Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig` for default-device switching), `VolumeController`, `SpatialAudioController` (`IPropertyStore` write of `PKEY_AudioEndpoint_Spatial_Audio_Format` DWORD via `Interop/SpatialAudioInterop.cs`). These may throw HRESULT exceptions; the applier's `TryStep` converts them to data.
 
 ### AudioSwitch.App — shell
 - **`App.xaml.cs`** — composition root. Reads command-line args (`--startup` suppresses window), builds `ThemeService`, `MainWindow`, `HotkeyService`, `AppHost`, `TrayIconHost`.
@@ -123,4 +123,3 @@ Errors are data, not exceptions. The profile is still marked active and persiste
 
 ## Untouched V2 surface
 - **Equalizer APO wiring.** `EqualizerComponent.Bands` values persist through the library but aren't yet swapped into a live APO config. Zero-latency principle still applies — config-file swap, not DSP.
-- **Spatial audio controller.** Currently a stub returning `Stereo`.

@@ -64,7 +64,6 @@ Left-click the tray icon to open the main window.
 
 ## Roadmap
 - Equalizer APO wiring (currently EQ bands persist but don't affect audio).
-- Working spatial-audio controller (currently a stub).
 
 ## Documentation
 - [`CORE_PRINCIPLE.md`](CORE_PRINCIPLE.md) — the why.

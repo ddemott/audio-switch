@@ -12,11 +12,6 @@ EQ bands are stored in `profiles.json` but do not affect audio. The zero-latency
 - On `ApplyProfile`, write the selected `EqualizerComponent.Bands` to the device's APO config file (path varies per device — typically `C:\Program Files\EqualizerAPO\config\config.txt` or per-device configs).
 - Handle "APO not installed" gracefully — status-bar message, don't fail the whole apply.
 
-### Spatial audio controller
-`SpatialAudioController.SetMode` is currently a stub returning `Stereo`.
-- Wire against Windows' spatial audio API (`AudioExtensionSettings` / `PropVariant` on `ENDPOINT_PROPKEY_SpatialAudioFormat` or the newer CLSID registration path).
-- Test against Windows Sonic, Dolby Atmos, and DTS Headphone:X.
-
 ---
 
 ## Refactors / polish
@@ -29,6 +24,7 @@ Done (shipped):
 - ~~**Portable mode** — `Core/Services/PortableMode.cs` + `ProfileStore.DefaultFilePath(baseDir)` branch; `AppHost.IsPortable` short-circuits `SetStartWithWindows`; tray menu disables + main-window title suffix; `scripts/build-portable.ps1` publishes self-contained with `portable.flag`.~~
 - ~~**Per-profile volume editing** — `AudioProfile.ComponentVolumes` dict (override → component default); `ProfileApplier.ResolveVolume`; `ProfileVolumesWindow` modal with sliders per Output/Input; right-click profile → "Edit volumes...". 5 new applier tests.~~
 - ~~**In-app Help window** — `HelpWindow.xaml` opened from Help button (top-right) or F1 via `ApplicationCommands.Help`. Covers main-window layout, profile CRUD, hotkeys, tray, theme, portable mode, troubleshooting.~~
+- ~~**Spatial audio controller** — `SpatialAudioController` writes `PKEY_AudioEndpoint_Spatial_Audio_Format` DWORD via raw `IPropertyStore` interop; `Core/Services/SpatialAudioFormatRegistry` maps `SpatialAudioMode` ↔ DWORD. 14 new tests for the mapping + 5W sad-path coverage. Atmos/DTS apps not auto-installed — they silently fall back to stereo if missing.~~
 
 Still open:
 - **`AudioSwitch.Audio.Tests` is empty.** Nothing concrete to test yet; re-evaluate when non-COM logic lands in that project.

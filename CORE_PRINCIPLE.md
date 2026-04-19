@@ -21,10 +21,10 @@ A profile is a named bundle of component ids. Components are reusable first-clas
 Mix and match. An equalizer can belong to many profiles without being duplicated.
 
 ## What's wired vs. what isn't (current)
-- ✅ Output/input default-device switching + volume
-- ✅ Profile CRUD, hotkeys, tray, theming, startup registration, minimize-to-tray
+- ✅ Output/input default-device switching + per-profile volume override
+- ✅ Profile CRUD, hotkeys, tray, theming, startup registration, minimize-to-tray, portable mode
+- ✅ Spatial audio — `IPropertyStore` write to `PKEY_AudioEndpoint_Spatial_Audio_Format` (Stereo / Windows Sonic / Dolby Atmos / DTS Headphone:X)
 - ⏳ Equalizer — bands persist; APO wiring still to do
-- ⏳ Spatial audio — controller is a stub returning Stereo
 
 ## Target Users
 People who frequently switch audio contexts — Teams calls, competitive gaming (CoD, Arc Raiders), casual listening — and are tired of manually reconfiguring devices and settings each time.

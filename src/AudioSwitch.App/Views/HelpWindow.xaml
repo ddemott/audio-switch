@@ -131,13 +131,26 @@
                     Drop a zero-byte file named <Run FontFamily="Consolas">portable.flag</Run> next to <Run FontFamily="Consolas">AudioSwitch.App.exe</Run> and the app runs registry-free: <Run FontFamily="Consolas">profiles.json</Run> lives beside the exe, Start-with-Windows is disabled, the title shows <Run FontWeight="SemiBold">"(Portable)"</Run>. Build one from source with <Run FontFamily="Consolas">pwsh ./scripts/build-portable.ps1</Run>.
                 </TextBlock>
 
+                <TextBlock Style="{StaticResource HelpH1}" Text="Spatial audio" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Each profile can pick a spatial format for its output device:
+                </TextBlock>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Stereo</Run> — passthrough; best for music.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Windows Sonic for Headphones</Run> — built into Windows; great free option for footstep cues in shooters.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Dolby Atmos for Headphones</Run> — needs the Dolby Access app from the Microsoft Store.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">DTS Headphone:X</Run> — needs DTS Sound Unbound.</TextBlock>
+                </StackPanel>
+                <TextBlock Style="{StaticResource HelpMuted}">
+                    Atmos / DTS are written to the endpoint regardless of whether the companion app is installed; they fall back to stereo silently if the format isn't available.
+                </TextBlock>
+
                 <TextBlock Style="{StaticResource HelpH1}" Text="What's not yet wired" />
                 <StackPanel>
                     <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Equalizer bands save but don't affect audio yet</Run> — driver-level wiring via Equalizer APO is on the roadmap.</TextBlock>
-                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Spatial audio mode</Run> (Sonic / Atmos / DTS) is a stub; setting a profile's mode doesn't flip Windows yet.</TextBlock>
                 </StackPanel>
                 <TextBlock Style="{StaticResource HelpMuted}">
-                    Everything else — device switching, volumes, hotkeys, tray behavior, theming, profile CRUD — is live.
+                    Everything else — device switching, volumes (per-profile), spatial audio, hotkeys, tray behavior, theming, profile CRUD — is live.
                 </TextBlock>
 
                 <TextBlock Style="{StaticResource HelpH1}" Text="Troubleshooting" />
