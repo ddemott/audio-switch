@@ -1,4 +1,8 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using AudioSwitch.App.Composition;
 using AudioSwitch.Core.Models;
 
@@ -7,110 +11,126 @@ namespace AudioSwitch.App;
 public partial class MainWindow : Window
 {
     private AppHost? _host;
+    private bool _suppressSelectionSync;
+    private bool _redrawQueued;
 
     public MainWindow()
     {
         InitializeComponent();
+        Loaded += (_, _) => QueueRedraw();
+        SizeChanged += (_, _) => QueueRedraw();
     }
 
     public void Bind(AppHost host)
     {
         _host = host;
-        RefreshDevices();
-        RefreshProfiles();
-        RefreshLibrary();
+        RefreshAll();
+        _host.ProfileManager.LibraryChanged += (_, _) => Dispatcher.Invoke(() => { RefreshLibrary(); QueueRedraw(); });
         _host.ProfileManager.ProfilesChanged += (_, _) => Dispatcher.Invoke(RefreshProfiles);
-        _host.ProfileManager.LibraryChanged += (_, _) => Dispatcher.Invoke(RefreshLibrary);
-        _host.ProfileManager.ProfileApplied += (_, result) => Dispatcher.Invoke(() => ShowApplyResult(result));
+        _host.ProfileManager.ProfileApplied += (_, r) => Dispatcher.Invoke(() => ShowApplyResult(r));
     }
 
-    // === Device pane ===
+    // === Add menus ===
 
-    private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshDevices();
+    private void AddOutput_Click(object sender, RoutedEventArgs e) =>
+        ShowDevicePickerMenu(
+            (Button)sender,
+            AudioDeviceDirection.Render,
+            device => new OutputDeviceComponent { Name = device.Name, DeviceId = device.Id, Volume = 80 });
 
-    private void ClearInputButton_Click(object sender, RoutedEventArgs e)
+    private void AddInput_Click(object sender, RoutedEventArgs e) =>
+        ShowDevicePickerMenu(
+            (Button)sender,
+            AudioDeviceDirection.Capture,
+            device => new InputDeviceComponent { Name = device.Name, DeviceId = device.Id, Volume = 80 });
+
+    private void AddEqualizer_Click(object sender, RoutedEventArgs e)
     {
-        InputDevicesList.SelectedItem = null;
-        StatusText.Text = "Input cleared — next saved profile will have no microphone.";
+        if (_host is null) return;
+        var existing = _host.ProfileManager.Library.Equalizers.Count;
+        var eq = new EqualizerComponent { Name = $"Equalizer {existing + 1}" };
+        _host.ProfileManager.AddComponent(eq);
+        StatusText.Text = $"Added '{eq.Name}'. (APO config path can be set later; full EQ wiring is V2.)";
     }
 
-    private void SaveAsProfileButton_Click(object sender, RoutedEventArgs e)
+    private void ShowDevicePickerMenu(Button anchor, AudioDeviceDirection direction, Func<AudioDevice, Component> factory)
     {
-        if (_host is null || OutputDevicesList.SelectedItem is not AudioDevice output)
+        if (_host is null) return;
+        var menu = new ContextMenu();
+        var devices = _host.DeviceService.GetDevices(direction);
+        foreach (var device in devices)
         {
-            StatusText.Text = "Select an output device first.";
-            return;
-        }
-
-        var input = InputDevicesList.SelectedItem as AudioDevice;
-        var slot = NextAvailableSlot();
-
-        var outputComponent = new OutputDeviceComponent
-        {
-            Name = output.Name,
-            DeviceId = output.Id,
-            Volume = 80,
-        };
-        InputDeviceComponent? inputComponent = null;
-        if (input is not null)
-        {
-            inputComponent = new InputDeviceComponent
+            var captured = device;
+            var item = new MenuItem { Header = captured.Name };
+            item.Click += (_, _) =>
             {
-                Name = input.Name,
-                DeviceId = input.Id,
-                Volume = 80,
+                var component = factory(captured);
+                if (_host.ProfileManager.AddComponent(component))
+                {
+                    StatusText.Text = $"Added '{component.Name}'.";
+                }
+                else
+                {
+                    StatusText.Text = $"'{component.Name}' already exists in the library.";
+                }
             };
+            menu.Items.Add(item);
         }
-
-        _host.ProfileManager.AddComponent(outputComponent);
-        if (inputComponent is not null)
+        if (menu.Items.Count == 0)
         {
-            _host.ProfileManager.AddComponent(inputComponent);
+            menu.Items.Add(new MenuItem { Header = "(no devices found)", IsEnabled = false });
         }
+        menu.PlacementTarget = anchor;
+        menu.IsOpen = true;
+    }
 
-        var profileName = inputComponent is null ? output.Name : $"{output.Name} + {input!.Name}";
-        var profile = new AudioProfile
+    // === Component row right-click: delete ===
+
+    private void Component_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (_host is null || sender is not ListBox list) return;
+        if (list.SelectedItem is not Component component) return;
+
+        var menu = new ContextMenu();
+        var delete = new MenuItem { Header = $"Delete '{component.Name}'" };
+        delete.Click += (_, _) =>
         {
-            Name = profileName,
-            Hotkey = $"Ctrl+Shift+{slot}",
-            ComponentIds = inputComponent is null
-                ? new List<string> { outputComponent.Id }
-                : new List<string> { outputComponent.Id, inputComponent.Id },
+            if (_host.ProfileManager.RemoveComponent(component.Id))
+            {
+                StatusText.Text = $"Deleted component '{component.Name}'.";
+            }
         };
-
-        try
-        {
-            _host.ProfileManager.AddProfile(profile);
-            var pairing = inputComponent is null ? "output only" : "output + input";
-            StatusText.Text = $"Saved profile '{profile.Name}' ({pairing}) with hotkey {profile.Hotkey}.";
-        }
-        catch (InvalidOperationException ex)
-        {
-            StatusText.Text = ex.Message;
-        }
+        menu.Items.Add(delete);
+        menu.PlacementTarget = list;
+        menu.IsOpen = true;
     }
 
-    // === Profile pane ===
-
-    private void ApplyButton_Click(object sender, RoutedEventArgs e) => ApplySelected();
-
-    private void ProfilesList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void Profile_RightClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.OriginalSource is System.Windows.DependencyObject src
-            && FindAncestor<System.Windows.Controls.ListBoxItem>(src) is null)
+        if (_host is null || ProfilesListBox.SelectedItem is not AudioProfile profile) return;
+
+        var menu = new ContextMenu();
+        var delete = new MenuItem { Header = $"Delete '{profile.Name}'" };
+        delete.Click += (_, _) =>
+        {
+            _host.ProfileManager.RemoveProfile(profile.Name);
+            StatusText.Text = $"Deleted profile '{profile.Name}'.";
+        };
+        menu.Items.Add(delete);
+        menu.PlacementTarget = ProfilesListBox;
+        menu.IsOpen = true;
+    }
+
+    // === Profile apply ===
+
+    private void Profile_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject src
+            && FindAncestor<ListBoxItem>(src) is null)
         {
             return;
         }
-        ApplySelected();
-    }
-
-    private void ApplySelected()
-    {
-        if (_host is null || ProfilesList.SelectedItem is not AudioProfile profile)
-        {
-            StatusText.Text = "Select a profile first.";
-            return;
-        }
+        if (_host is null || ProfilesListBox.SelectedItem is not AudioProfile profile) return;
         try
         {
             _host.ProfileManager.ApplyProfile(profile.Name);
@@ -121,56 +141,222 @@ public partial class MainWindow : Window
         }
     }
 
-    private void DeleteProfileButton_Click(object sender, RoutedEventArgs e)
+    // === Save current selections as a new profile ===
+
+    private void SaveLinks_Click(object sender, RoutedEventArgs e)
     {
-        if (_host is null || ProfilesList.SelectedItem is not AudioProfile profile)
+        if (_host is null) return;
+        var ids = new List<string>();
+        if (OutputsListBox.SelectedItem is OutputDeviceComponent o) ids.Add(o.Id);
+        if (InputsListBox.SelectedItem is InputDeviceComponent i) ids.Add(i.Id);
+        if (EqualizersListBox.SelectedItem is EqualizerComponent q) ids.Add(q.Id);
+        if (ids.Count == 0)
         {
-            StatusText.Text = "Select a profile first.";
+            StatusText.Text = "Select at least one item across the columns first.";
             return;
         }
-        _host.ProfileManager.RemoveProfile(profile.Name);
-        StatusText.Text = $"Removed profile '{profile.Name}'.";
+
+        var name = BuildProfileName();
+        var slot = NextAvailableSlot();
+        var profile = new AudioProfile
+        {
+            Name = name,
+            Hotkey = $"Ctrl+Shift+{slot}",
+            ComponentIds = ids,
+        };
+        try
+        {
+            _host.ProfileManager.AddProfile(profile);
+            StatusText.Text = $"Saved link config '{profile.Name}' with hotkey {profile.Hotkey}.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusText.Text = ex.Message;
+        }
     }
 
-    private void DeleteComponentButton_Click(object sender, RoutedEventArgs e)
+    private string BuildProfileName()
     {
-        if (_host is null || LibraryList.SelectedItem is not LibraryRow row)
+        var parts = new List<string>();
+        if (OutputsListBox.SelectedItem is Component o) parts.Add(o.Name);
+        if (InputsListBox.SelectedItem is Component i) parts.Add(i.Name);
+        if (EqualizersListBox.SelectedItem is Component q) parts.Add(q.Name);
+        var baseName = string.Join(" + ", parts);
+        if (string.IsNullOrWhiteSpace(baseName)) baseName = "Link config";
+
+        if (_host is null) return baseName;
+        var existing = _host.ProfileManager.Profiles.Select(p => p.Name).ToHashSet();
+        if (!existing.Contains(baseName)) return baseName;
+        for (var n = 2; n < 1000; n++)
         {
-            StatusText.Text = "Select a component first.";
+            var candidate = $"{baseName} ({n})";
+            if (!existing.Contains(candidate)) return candidate;
+        }
+        return baseName;
+    }
+
+    // === Selection → bezier redraw + profile-to-columns sync ===
+
+    private void Selection_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressSelectionSync) return;
+        QueueRedraw();
+    }
+
+    private void ProfileSelection_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_host is null) return;
+        if (ProfilesListBox.SelectedItem is not AudioProfile profile)
+        {
             return;
         }
-        if (_host.ProfileManager.RemoveComponent(row.Component.Id))
+        _suppressSelectionSync = true;
+        try
         {
-            StatusText.Text = $"Removed component '{row.Component.Name}'.";
+            OutputsListBox.SelectedItem = profile.ComponentIds
+                .Select(id => _host.ProfileManager.Library.FindById(id))
+                .OfType<OutputDeviceComponent>()
+                .FirstOrDefault();
+            InputsListBox.SelectedItem = profile.ComponentIds
+                .Select(id => _host.ProfileManager.Library.FindById(id))
+                .OfType<InputDeviceComponent>()
+                .FirstOrDefault();
+            EqualizersListBox.SelectedItem = profile.ComponentIds
+                .Select(id => _host.ProfileManager.Library.FindById(id))
+                .OfType<EqualizerComponent>()
+                .FirstOrDefault();
+        }
+        finally
+        {
+            _suppressSelectionSync = false;
+        }
+        QueueRedraw();
+    }
+
+    private void QueueRedraw()
+    {
+        if (_redrawQueued) return;
+        _redrawQueued = true;
+        Dispatcher.InvokeAsync(() =>
+        {
+            _redrawQueued = false;
+            RedrawLinks();
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    // === Bezier drawing ===
+
+    private void RedrawLinks()
+    {
+        if (_host is null) return;
+        LinkCanvas.Children.Clear();
+
+        DrawBetween(
+            AnchorPoint(OutputsListBox, OutputsListBox.SelectedItem, rightEdge: true),
+            AnchorPoint(InputsListBox, InputsListBox.SelectedItem, rightEdge: false),
+            "#34D399");
+        DrawBetween(
+            AnchorPoint(InputsListBox, InputsListBox.SelectedItem, rightEdge: true),
+            AnchorPoint(EqualizersListBox, EqualizersListBox.SelectedItem, rightEdge: false),
+            "#A78BFA");
+    }
+
+    private void DrawBetween(Point? start, Point? end, string colorHex)
+    {
+        if (start is null || end is null) return;
+
+        var color = (Color)ColorConverter.ConvertFromString(colorHex);
+
+        var path = new Path
+        {
+            Stroke = new SolidColorBrush(color),
+            StrokeThickness = 2,
+            SnapsToDevicePixels = true,
+            Data = BuildBezier(start.Value, end.Value),
+            IsHitTestVisible = false,
+        };
+        LinkCanvas.Children.Add(path);
+    }
+
+    private static Geometry BuildBezier(Point a, Point b)
+    {
+        var dx = Math.Max(40, (b.X - a.X) * 0.5);
+        var c1 = new Point(a.X + dx, a.Y);
+        var c2 = new Point(b.X - dx, b.Y);
+        var figure = new PathFigure { StartPoint = a };
+        figure.Segments.Add(new BezierSegment(c1, c2, b, isStroked: true));
+        var geom = new PathGeometry();
+        geom.Figures.Add(figure);
+        return geom;
+    }
+
+    private Point? AnchorPoint(ListBox list, object? item, bool rightEdge)
+    {
+        if (item is null) return null;
+        list.UpdateLayout();
+        if (list.ItemContainerGenerator.ContainerFromItem(item) is not ListBoxItem container) return null;
+        if (container.ActualWidth <= 0 || container.ActualHeight <= 0) return null;
+        try
+        {
+            var x = rightEdge ? container.ActualWidth : 0;
+            var y = container.ActualHeight / 2;
+            return container.TransformToVisual(LinkCanvas).Transform(new Point(x, y));
+        }
+        catch
+        {
+            return null;
         }
     }
 
     // === Refresh helpers ===
 
-    private void RefreshDevices()
+    private void RefreshAll()
     {
-        if (_host is null) return;
-        var outputs = _host.DeviceService.GetDevices(AudioDeviceDirection.Render);
-        var inputs = _host.DeviceService.GetDevices(AudioDeviceDirection.Capture);
-        OutputDevicesList.ItemsSource = outputs;
-        InputDevicesList.ItemsSource = inputs;
-        StatusText.Text = $"{outputs.Count} output / {inputs.Count} input devices.";
-    }
-
-    private void RefreshProfiles()
-    {
-        if (_host is null) return;
-        ProfilesList.ItemsSource = null;
-        ProfilesList.ItemsSource = _host.ProfileManager.Profiles;
+        RefreshLibrary();
+        RefreshProfiles();
     }
 
     private void RefreshLibrary()
     {
         if (_host is null) return;
-        LibraryList.ItemsSource = null;
-        LibraryList.ItemsSource = _host.ProfileManager.Library.All
-            .Select(c => new LibraryRow(LabelFor(c), c))
-            .ToList();
+        var lib = _host.ProfileManager.Library;
+
+        _suppressSelectionSync = true;
+        try
+        {
+            RefreshList(OutputsListBox, lib.Outputs, OutputCountText);
+            RefreshList(InputsListBox, lib.Inputs, InputCountText);
+            RefreshList(EqualizersListBox, lib.Equalizers, EqualizerCountText);
+        }
+        finally
+        {
+            _suppressSelectionSync = false;
+        }
+    }
+
+    private void RefreshProfiles()
+    {
+        if (_host is null) return;
+        var selected = ProfilesListBox.SelectedItem as AudioProfile;
+        ProfilesListBox.ItemsSource = null;
+        ProfilesListBox.ItemsSource = _host.ProfileManager.Profiles;
+        ProfileCountText.Text = _host.ProfileManager.Profiles.Count.ToString();
+        if (selected is not null)
+        {
+            ProfilesListBox.SelectedItem = _host.ProfileManager.Profiles.FirstOrDefault(p => p.Name == selected.Name);
+        }
+    }
+
+    private static void RefreshList<T>(ListBox list, IReadOnlyList<T> source, TextBlock countLabel)
+    {
+        var selected = list.SelectedItem;
+        list.ItemsSource = null;
+        list.ItemsSource = source;
+        countLabel.Text = source.Count.ToString();
+        if (selected is T t && source.Contains(t))
+        {
+            list.SelectedItem = selected;
+        }
     }
 
     private void ShowApplyResult(ProfileApplyResult result)
@@ -203,25 +389,14 @@ public partial class MainWindow : Window
         return 1;
     }
 
-    private static string LabelFor(Component c) => c switch
-    {
-        OutputDeviceComponent => "Output",
-        InputDeviceComponent => "Input",
-        SpatialAudioComponent => "Spatial",
-        EqualizerComponent => "Equalizer",
-        _ => "Component",
-    };
-
-    private static T? FindAncestor<T>(System.Windows.DependencyObject start) where T : System.Windows.DependencyObject
+    private static T? FindAncestor<T>(DependencyObject start) where T : DependencyObject
     {
         var current = start;
         while (current is not null)
         {
             if (current is T match) return match;
-            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+            current = VisualTreeHelper.GetParent(current);
         }
         return null;
     }
-
-    public sealed record LibraryRow(string TypeLabel, Component Component);
 }
