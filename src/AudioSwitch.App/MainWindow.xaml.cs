@@ -6,6 +6,7 @@ using System.Windows.Shapes;
 using AudioSwitch.App.Composition;
 using AudioSwitch.App.Views;
 using AudioSwitch.Core.Models;
+using AudioSwitch.Core.Services;
 
 namespace AudioSwitch.App;
 
@@ -48,10 +49,53 @@ public partial class MainWindow : Window
     private void AddEqualizer_Click(object sender, RoutedEventArgs e)
     {
         if (_host is null) return;
-        var existing = _host.ProfileManager.Library.Equalizers.Count;
-        var eq = new EqualizerComponent { Name = $"Equalizer {existing + 1}" };
+        var menu = new ContextMenu();
+
+        var blank = new MenuItem { Header = "New blank equalizer (flat)" };
+        blank.Click += (_, _) => AddEqualizerComponent(
+            name: $"Equalizer {_host.ProfileManager.Library.Equalizers.Count + 1}",
+            bands: EqualizerComponent.DefaultBands());
+        menu.Items.Add(blank);
+        menu.Items.Add(new Separator());
+
+        foreach (var group in EqualizerPresets.All.GroupBy(p => p.Category))
+        {
+            var groupItem = new MenuItem { Header = group.Key };
+            foreach (var preset in group)
+            {
+                var captured = preset;
+                var item = new MenuItem { Header = captured.Name };
+                item.Click += (_, _) => AddEqualizerComponent(
+                    name: UniqueName(captured.Name),
+                    bands: EqualizerPresets.BuildBands(captured));
+                groupItem.Items.Add(item);
+            }
+            menu.Items.Add(groupItem);
+        }
+
+        menu.PlacementTarget = (UIElement)sender;
+        menu.IsOpen = true;
+    }
+
+    private void AddEqualizerComponent(string name, List<EqualizerBand> bands)
+    {
+        if (_host is null) return;
+        var eq = new EqualizerComponent { Name = name, Bands = bands };
         _host.ProfileManager.AddComponent(eq);
-        StatusText.Text = $"Added '{eq.Name}'. (APO config path can be set later; full EQ wiring is V2.)";
+        StatusText.Text = $"Added '{eq.Name}'.";
+    }
+
+    private string UniqueName(string baseName)
+    {
+        if (_host is null) return baseName;
+        var existing = _host.ProfileManager.Library.Equalizers.Select(e => e.Name).ToHashSet();
+        if (!existing.Contains(baseName)) return baseName;
+        for (var n = 2; n < 1000; n++)
+        {
+            var candidate = $"{baseName} ({n})";
+            if (!existing.Contains(candidate)) return candidate;
+        }
+        return baseName;
     }
 
     private void ShowDevicePickerMenu(Button anchor, AudioDeviceDirection direction, Func<AudioDevice, Component> factory)
