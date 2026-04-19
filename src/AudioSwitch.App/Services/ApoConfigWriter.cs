@@ -52,6 +52,25 @@ public sealed class ApoConfigWriter : IApoConfigWriter
         EnsureIncludeDirective(configFile);
     }
 
+    public string? Snapshot()
+    {
+        if (!IsAvailable) return null;
+        var ourFile = Path.Combine(_configDirectory, AudioSwitchConfigFileName);
+        return File.Exists(ourFile) ? File.ReadAllText(ourFile) : null;
+    }
+
+    public void Restore(string? snapshot)
+    {
+        if (!IsAvailable) return;
+        var ourFile = Path.Combine(_configDirectory, AudioSwitchConfigFileName);
+        if (snapshot is null)
+        {
+            if (File.Exists(ourFile)) File.Delete(ourFile);
+            return;
+        }
+        File.WriteAllText(ourFile, snapshot);
+    }
+
     private static void EnsureIncludeDirective(string configFilePath)
     {
         var existing = File.ReadAllText(configFilePath);

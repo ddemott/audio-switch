@@ -191,7 +191,7 @@ public partial class MainWindow : Window
     private void OpenEqualizerEditor(EqualizerComponent eq)
     {
         if (_host is null) return;
-        var editor = new EqualizerEditorWindow(eq) { Owner = this };
+        var editor = new EqualizerEditorWindow(eq, _host.ApoConfigWriter, _host.DeviceService) { Owner = this };
         if (editor.ShowDialog() == true && editor.Saved)
         {
             _host.ProfileManager.UpdateComponent(eq);

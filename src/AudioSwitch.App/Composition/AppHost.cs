@@ -20,10 +20,10 @@ public sealed class AppHost : IDisposable
         var deviceService = new CoreAudioController();
         var volumeController = new VolumeController();
         var spatialController = new SpatialAudioController();
-        var apoConfigWriter = new ApoConfigWriter();
+        ApoConfigWriter = new ApoConfigWriter();
         var profilePath = Core.Services.ProfileStore.DefaultFilePath(baseDir);
         ProfileStore = new ProfileStore(profilePath);
-        ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController, apoConfigWriter);
+        ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController, ApoConfigWriter);
         DeviceService = deviceService;
         VolumeController = volumeController;
         SpatialController = spatialController;
@@ -54,6 +54,8 @@ public sealed class AppHost : IDisposable
     public ThemeService ThemeService { get; }
 
     public StartupRegistrationService StartupRegistration { get; }
+
+    public IApoConfigWriter ApoConfigWriter { get; }
 
     public bool IsPortable { get; }
 
