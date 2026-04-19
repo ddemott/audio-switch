@@ -236,6 +236,18 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    // === Help ===
+
+    private void HelpButton_Click(object sender, RoutedEventArgs e) => ShowHelp();
+
+    private void HelpCommand_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e) => ShowHelp();
+
+    private void ShowHelp()
+    {
+        var help = new HelpWindow { Owner = this };
+        help.ShowDialog();
+    }
+
     // === Theme menu ===
 
     private void ThemeButton_Click(object sender, RoutedEventArgs e)

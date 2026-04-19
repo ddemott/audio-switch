@@ -1,0 +1,164 @@
+<Window x:Class="AudioSwitch.App.Views.HelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AudioSwitch — Help" Height="640" Width="720"
+        Background="{DynamicResource SurfaceDefault}" Foreground="{DynamicResource TextPrimary}"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize" ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="HelpH1" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="Margin" Value="0,18,0,8" />
+        </Style>
+        <Style x:Key="HelpH2" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentProfile}" />
+            <Setter Property="Margin" Value="0,12,0,4" />
+        </Style>
+        <Style x:Key="HelpBody" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="LineHeight" Value="20" />
+        </Style>
+        <Style x:Key="HelpMuted" TargetType="TextBlock" BasedOn="{StaticResource HelpBody}">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+            <Setter Property="FontStyle" Value="Italic" />
+        </Style>
+        <Style x:Key="HelpKey" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource BorderSubtle}" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="22,18,22,18">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Close" Padding="16,6" IsDefault="True" IsCancel="True"
+                    Background="{DynamicResource AccentProfile}" Foreground="{DynamicResource TextOnAccent}"
+                    BorderThickness="0" FontWeight="SemiBold" Click="Close_Click" />
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
+            <StackPanel>
+                <TextBlock Style="{StaticResource HelpH1}" Text="AudioSwitch" Margin="0,0,0,4" />
+                <TextBlock Style="{StaticResource HelpMuted}">
+                    One-hotkey profile switcher for Windows audio devices. Bundle an output, an input, and an equalizer into a named profile, then flip between them from the tray, a hotkey, or double-click.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="The main window" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Four columns, left to right: <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentOutput}">Outputs</Run>, <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentInput}">Inputs</Run>, <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentEq}">Equalizers</Run>, and <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentProfile}">Link configs</Run> (your saved profiles).
+                </TextBlock>
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Outputs and Inputs auto-populate on launch from the devices Windows knows about. Equalizers start empty — add a flat one or pick a curated preset. Bezier curves overlay the columns to show the links between your current selection.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH2}" Text="Creating a profile" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Click one row in each of the first three columns (output, input, equalizer — equalizer is optional). Click <Run FontWeight="SemiBold">+ Save current links as config</Run> at the bottom of the fourth column. Give it a name; it appears in the Link configs list and gets an auto-assigned hotkey.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH2}" Text="Applying a profile" />
+                <StackPanel>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Double-click</Run> a link config row.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• Press its <Run FontWeight="SemiBold">global hotkey</Run> — works even when AudioSwitch is minimized or another app has focus.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• Right-click the tray icon → <Run FontWeight="SemiBold">Apply profile</Run> submenu.</TextBlock>
+                </StackPanel>
+                <TextBlock Style="{StaticResource HelpBody}">
+                    The status bar at the bottom reports which steps succeeded. A partial failure (e.g. device unplugged) still marks the profile active — the app tells you what worked and what didn't.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH2}" Text="Editing and renaming" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    <Run FontWeight="SemiBold">Right-click</Run> any row for its context menu:
+                </TextBlock>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource HelpBody}">• Output / Input — Rename or Delete.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• Equalizer — Edit 10 bands, rename via the dialog, or Delete.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• Link config — Rename or Delete.</TextBlock>
+                </StackPanel>
+                <TextBlock Style="{StaticResource HelpBody}">
+                    <Run FontWeight="SemiBold">Double-click</Run> an equalizer row to open the 10-band editor.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="Hotkeys" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Border Style="{StaticResource HelpKey}"><TextBlock Text="Ctrl" /></Border>
+                    <TextBlock Text="+" VerticalAlignment="Center" Margin="2,0" />
+                    <Border Style="{StaticResource HelpKey}"><TextBlock Text="Shift" /></Border>
+                    <TextBlock Text="+" VerticalAlignment="Center" Margin="2,0" />
+                    <Border Style="{StaticResource HelpKey}"><TextBlock Text="1–9" /></Border>
+                    <TextBlock Text="  auto-assigned to saved link configs in creation order." VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource HelpMuted}">
+                    Global — they fire even when AudioSwitch isn't focused. If a hotkey collides with another app, that app wins; delete the profile or the colliding binding to free it.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="The tray icon" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    AudioSwitch lives in the system tray (bottom-right of the taskbar). Its tooltip shows the active profile.
+                </TextBlock>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Left-click / double-click</Run> — open the main window.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Right-click</Run> — Show, Apply profile ▸, Start with Windows (toggle), Exit.</TextBlock>
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource HelpH2}" Text="Closing the window" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    The first time you click the window's <Run FontWeight="SemiBold">X</Run> you'll be asked whether to minimize to tray, exit, or cancel. Tick <Run FontWeight="SemiBold">Don't ask again</Run> to remember the choice. Only <Run FontWeight="SemiBold">Exit</Run> (tray or dialog) actually quits; closing the window otherwise just hides it.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH2}" Text="Start with Windows" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    When enabled, AudioSwitch launches on login with its main window hidden — it just sits in the tray waiting for a hotkey. Disabled automatically in portable builds (see below).
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="Theme" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Click the <Run FontWeight="SemiBold">Theme</Run> button (top-right of the main window) for System / Light / Dark. "System" follows the Windows theme; others override. Your choice is saved.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="Portable mode" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Drop a zero-byte file named <Run FontFamily="Consolas">portable.flag</Run> next to <Run FontFamily="Consolas">AudioSwitch.App.exe</Run> and the app runs registry-free: <Run FontFamily="Consolas">profiles.json</Run> lives beside the exe, Start-with-Windows is disabled, the title shows <Run FontWeight="SemiBold">"(Portable)"</Run>. Build one from source with <Run FontFamily="Consolas">pwsh ./scripts/build-portable.ps1</Run>.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="What's not yet wired" />
+                <StackPanel>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Equalizer bands save but don't affect audio yet</Run> — driver-level wiring via Equalizer APO is on the roadmap.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Spatial audio mode</Run> (Sonic / Atmos / DTS) is a stub; setting a profile's mode doesn't flip Windows yet.</TextBlock>
+                </StackPanel>
+                <TextBlock Style="{StaticResource HelpMuted}">
+                    Everything else — device switching, volumes, hotkeys, tray behavior, theming, profile CRUD — is live.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="Troubleshooting" />
+                <TextBlock Style="{StaticResource HelpH2}" Text="Nothing happens when I press a hotkey" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Another app may already own that key combination. Check the status bar after you create the profile — if the hotkey failed to register, reassign it by deleting and recreating the profile (auto-assignment skips busy combos).
+                </TextBlock>
+                <TextBlock Style="{StaticResource HelpH2}" Text="Windows 11 Smart App Control blocks the app" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    If the app or its tests fail with <Run FontFamily="Consolas">0x800711C7</Run> (Application Control policy blocked), reboot. <Run FontFamily="Consolas">Unblock-File</Run> does not clear SAC — it's a separate policy layer.
+                </TextBlock>
+                <TextBlock Style="{StaticResource HelpH2}" Text="My profiles vanished after an update" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Breaking schema changes quarantine the old file as <Run FontFamily="Consolas">profiles.json.corrupt-{timestamp}</Run> next to your current profiles file. The data is preserved — open it in a text editor to recover values by hand.
+                </TextBlock>
+
+                <TextBlock Style="{StaticResource HelpH1}" Text="More" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Source code, roadmap, and issue tracker: <Run FontFamily="Consolas">github.com/ddemott/audio-switch</Run>
+                </TextBlock>
+                <TextBlock Style="{StaticResource HelpMuted}" Margin="0,12,0,0">
+                    Full documentation: README.md, ARCHITECTURE.md, CORE_PRINCIPLE.md in the repo.
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

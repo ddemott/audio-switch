@@ -40,6 +40,7 @@ Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig
 - **`MainWindow.xaml`** — 4-column node-link UI (Outputs / Inputs / Equalizers / Link configs). Bezier curves overlay `LinkCanvas` connecting selections. Intercepts `Closing` and delegates to `TrayIconHost`.
 - **`Views/EqualizerEditorWindow.xaml`** — 10-band modal.
 - **`Views/NameEditorWindow.xaml`** — generic name prompt (rename / save-as).
+- **`Views/HelpWindow.xaml`** — in-app documentation modal (opened via Help button or F1).
 - **`Views/CloseChoiceWindow.xaml`** — Minimize / Close / Cancel + "Don't ask again".
 - **`Themes/Dark.xaml` + `Light.xaml`** — resource dictionaries.
 - **`Assets/audio-switch.ico`** — multi-resolution tray / taskbar icon.

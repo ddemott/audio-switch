@@ -5,6 +5,12 @@
         Title="AudioSwitch" Height="640" Width="1200"
         Background="{DynamicResource SurfaceDefault}"
         Foreground="{DynamicResource TextPrimary}">
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Help" Executed="HelpCommand_Executed" />
+    </Window.CommandBindings>
+    <Window.InputBindings>
+        <KeyBinding Key="F1" Command="ApplicationCommands.Help" />
+    </Window.InputBindings>
     <Window.Resources>
 
         <Style x:Key="GlyphIcon" TargetType="TextBlock">
@@ -113,6 +119,15 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource GlyphIcon}" Text="&#xE771;" Margin="0,0,6,0" />
                     <TextBlock x:Name="ThemeButtonLabel" Text="Theme" />
+                </StackPanel>
+            </Button>
+            <Button x:Name="HelpButton" DockPanel.Dock="Right" Padding="10,4" Margin="0,0,8,0"
+                    Background="{DynamicResource BorderSubtle}" Foreground="{DynamicResource TextPrimary}"
+                    BorderThickness="0" Cursor="Hand" Click="HelpButton_Click"
+                    ToolTip="Show help (F1)">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource GlyphIcon}" Text="&#xE897;" Margin="0,0,6,0" />
+                    <TextBlock Text="Help" />
                 </StackPanel>
             </Button>
         </DockPanel>
