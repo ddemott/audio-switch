@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using AudioSwitch.App.Composition;
+using AudioSwitch.App.Services;
 using AudioSwitch.App.Views;
 using AudioSwitch.Core.Models;
 using AudioSwitch.Core.Services;
@@ -13,6 +14,7 @@ namespace AudioSwitch.App;
 public partial class MainWindow : Window
 {
     private AppHost? _host;
+    private TrayIconHost? _tray;
     private bool _suppressSelectionSync;
     private bool _redrawQueued;
 
@@ -21,6 +23,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Loaded += (_, _) => QueueRedraw();
         SizeChanged += (_, _) => QueueRedraw();
+        Closing += OnWindowClosing;
     }
 
     public void Bind(AppHost host)
@@ -30,8 +33,21 @@ public partial class MainWindow : Window
         UpdateThemeLabel();
         _host.ProfileManager.LibraryChanged += (_, _) => Dispatcher.Invoke(() => { RefreshLibrary(); QueueRedraw(); });
         _host.ProfileManager.ProfilesChanged += (_, _) => Dispatcher.Invoke(RefreshProfiles);
-        _host.ProfileManager.ProfileApplied += (_, r) => Dispatcher.Invoke(() => ShowApplyResult(r));
+        _host.ProfileManager.ProfileApplied += (_, r) => Dispatcher.Invoke(() =>
+        {
+            SelectProfileByName(r.Profile.Name);
+            ShowApplyResult(r);
+        });
         _host.ThemeService.AppliedThemeChanged += (_, _) => Dispatcher.Invoke(() => { UpdateThemeLabel(); QueueRedraw(); });
+    }
+
+    public void AttachTrayHost(TrayIconHost tray) => _tray = tray;
+
+    private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_tray is null || _tray.IsExiting) return;
+        e.Cancel = true;
+        _tray.RequestClose();
     }
 
     // === Add menus ===
@@ -234,7 +250,7 @@ public partial class MainWindow : Window
     private void PromptRenameProfile(AudioProfile profile)
     {
         if (_host is null) return;
-        var dialog = new NameEditorWindow("Rename profile", "New profile name", profile.Name) { Owner = this };
+        var dialog = new NameEditorWindow("Rename profile", profile.Name) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         try
         {
@@ -264,6 +280,7 @@ public partial class MainWindow : Window
             return;
         }
         if (_host is null || ProfilesListBox.SelectedItem is not AudioProfile profile) return;
+        SelectProfileByName(profile.Name);
         try
         {
             _host.ProfileManager.ApplyProfile(profile.Name);
@@ -290,7 +307,7 @@ public partial class MainWindow : Window
         }
 
         var suggested = BuildProfileName();
-        var dialog = new NameEditorWindow("Save link config", "Name this link config", suggested) { Owner = this };
+        var dialog = new NameEditorWindow("Save link config", suggested) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         var name = string.IsNullOrWhiteSpace(dialog.EnteredName) ? suggested : dialog.EnteredName;
 
@@ -342,32 +359,8 @@ public partial class MainWindow : Window
 
     private void ProfileSelection_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (_host is null) return;
-        if (ProfilesListBox.SelectedItem is not AudioProfile profile)
-        {
-            return;
-        }
-        _suppressSelectionSync = true;
-        try
-        {
-            OutputsListBox.SelectedItem = profile.ComponentIds
-                .Select(id => _host.ProfileManager.Library.FindById(id))
-                .OfType<OutputDeviceComponent>()
-                .FirstOrDefault();
-            InputsListBox.SelectedItem = profile.ComponentIds
-                .Select(id => _host.ProfileManager.Library.FindById(id))
-                .OfType<InputDeviceComponent>()
-                .FirstOrDefault();
-            EqualizersListBox.SelectedItem = profile.ComponentIds
-                .Select(id => _host.ProfileManager.Library.FindById(id))
-                .OfType<EqualizerComponent>()
-                .FirstOrDefault();
-        }
-        finally
-        {
-            _suppressSelectionSync = false;
-        }
-        QueueRedraw();
+        if (ProfilesListBox.SelectedItem is not AudioProfile profile) return;
+        SyncColumnsToProfile(profile);
     }
 
     private void QueueRedraw()
@@ -517,6 +510,48 @@ public partial class MainWindow : Window
         }
         var first = result.Errors[0];
         StatusText.Text = $"Applied '{result.Profile.Name}' with {result.Errors.Count} error(s): [{first.Step}] {first.Message}";
+    }
+
+    private void SelectProfileByName(string name)
+    {
+        if (_host is null) return;
+        var profile = _host.ProfileManager.Profiles.FirstOrDefault(p => p.Name == name);
+        if (profile is null) return;
+        if (ReferenceEquals(ProfilesListBox.SelectedItem, profile))
+        {
+            // SelectionChanged won't re-fire; sync columns directly.
+            SyncColumnsToProfile(profile);
+        }
+        else
+        {
+            ProfilesListBox.SelectedItem = profile;
+        }
+    }
+
+    private void SyncColumnsToProfile(AudioProfile profile)
+    {
+        if (_host is null) return;
+        _suppressSelectionSync = true;
+        try
+        {
+            OutputsListBox.SelectedItem = profile.ComponentIds
+                .Select(id => _host.ProfileManager.Library.FindById(id))
+                .OfType<OutputDeviceComponent>()
+                .FirstOrDefault();
+            InputsListBox.SelectedItem = profile.ComponentIds
+                .Select(id => _host.ProfileManager.Library.FindById(id))
+                .OfType<InputDeviceComponent>()
+                .FirstOrDefault();
+            EqualizersListBox.SelectedItem = profile.ComponentIds
+                .Select(id => _host.ProfileManager.Library.FindById(id))
+                .OfType<EqualizerComponent>()
+                .FirstOrDefault();
+        }
+        finally
+        {
+            _suppressSelectionSync = false;
+        }
+        QueueRedraw();
     }
 
     private int NextAvailableSlot()

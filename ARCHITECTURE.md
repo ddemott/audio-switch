@@ -1,125 +1,116 @@
 # Architecture
 
 ## Tech Stack
-- **Language:** C# (.NET 8)
-- **UI Framework:** WPF
-- **Audio API:** Windows Core Audio API (MMDevice / WASAPI) via NAudio for COM interop
-- **Profile Storage:** JSON (System.Text.Json)
-- **System Tray:** Hardcodet.NotifyIcon.Wpf
-- **Hotkeys:** Win32 RegisterHotKey via P/Invoke
+- **Language:** C# 12 / .NET 8 (`net8.0-windows`)
+- **UI:** WPF
+- **Audio API:** Windows Core Audio (MMDevice / PolicyConfig COM) via `AudioSwitch.Audio`
+- **Storage:** JSON (`System.Text.Json`) at `%APPDATA%/AudioSwitch/profiles.json`
+- **Tray:** `Hardcodet.NotifyIcon.Wpf`
+- **Hotkeys:** `RegisterHotKey` / `WM_HOTKEY` via P/Invoke
+- **Startup:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 
-## Project Structure
-
-```
-AudioSwitch/
-├── AudioSwitch.sln
-├── src/
-│   ├── AudioSwitch.App/              # WPF application (entry point)
-│   │   ├── App.xaml                   # Application startup, tray icon init
-│   │   ├── Views/
-│   │   │   ├── DashboardWindow.xaml   # Main profile management UI
-│   │   │   ├── ProfileEditorView.xaml # Create/edit a profile
-│   │   │   └── TrayIconMenu.xaml      # Context menu for system tray
-│   │   └── ViewModels/
-│   │       ├── DashboardViewModel.cs
-│   │       └── ProfileEditorViewModel.cs
-│   │
-│   ├── AudioSwitch.Core/             # Business logic (no UI dependencies)
-│   │   ├── Models/
-│   │   │   ├── AudioProfile.cs        # Profile definition (name, devices, spatial mode, volumes, hotkey)
-│   │   │   └── AudioDevice.cs         # Device descriptor (id, name, type, direction)
-│   │   ├── Services/
-│   │   │   ├── AudioDeviceService.cs  # Enumerate/switch devices via Core Audio API
-│   │   │   ├── ProfileManager.cs      # CRUD profiles, apply profile (orchestrator)
-│   │   │   ├── ProfileStore.cs        # Load/save profiles to JSON
-│   │   │   └── HotkeyService.cs       # Register/unregister global hotkeys
-│   │   └── Interfaces/
-│   │       ├── IAudioDeviceService.cs
-│   │       ├── IProfileManager.cs
-│   │       ├── IProfileStore.cs
-│   │       └── IHotkeyService.cs
-│   │
-│   └── AudioSwitch.Audio/            # Low-level audio platform code
-│       ├── CoreAudioController.cs     # MMDevice COM interop, set default device
-│       ├── SpatialAudioController.cs  # Toggle spatial audio format (stereo/Sonic/THX/Atmos)
-│       └── VolumeController.cs        # Get/set device volume levels
-│
-└── tests/
-    ├── AudioSwitch.Core.Tests/
-    └── AudioSwitch.Audio.Tests/
-```
-
-## Layer Responsibilities
-
-### AudioSwitch.App (Presentation)
-WPF application layer. Owns the system tray icon, dashboard window, and all XAML views. Uses MVVM pattern — ViewModels bind to Core services via interfaces. This layer has no audio logic.
-
-### AudioSwitch.Core (Business Logic)
-Platform-agnostic business logic. Defines the profile model, orchestrates profile switching, manages hotkey registration, and handles JSON persistence. Depends on interfaces, not implementations.
-
-Key flow — **applying a profile:**
-```
-ProfileManager.ApplyProfile(profile)
-  → AudioDeviceService.SetDefaultInput(profile.InputDeviceId)
-  → AudioDeviceService.SetDefaultOutput(profile.OutputDeviceId)
-  → SpatialAudioController.SetMode(profile.SpatialMode)
-  → VolumeController.SetVolume(profile.OutputDeviceId, profile.OutputVolume)
-  → VolumeController.SetVolume(profile.InputDeviceId, profile.InputVolume)
-```
-
-### AudioSwitch.Audio (Platform)
-Thin wrapper around Windows Core Audio COM APIs. Handles the actual P/Invoke and COM interop. Isolated so the rest of the app never touches COM directly.
-
-## Data Flow
+## Projects
 
 ```
-User Action (hotkey / tray click / dashboard)
-    │
-    ▼
-ViewModel or TrayIcon event handler
-    │
-    ▼
-ProfileManager.ApplyProfile(profileName)
-    │
-    ├──► AudioDeviceService  ──► CoreAudioController (COM)
-    ├──► SpatialAudioController (COM/Registry)
-    └──► VolumeController (COM)
+src/
+  AudioSwitch.Core/     # Platform-agnostic domain + interfaces (no WPF, no COM)
+  AudioSwitch.Audio/    # COM / PolicyConfig implementations of Core interfaces
+  AudioSwitch.App/      # WPF shell, tray host, views, composition root
+tests/
+  AudioSwitch.Core.Tests/   # xUnit + in-memory fakes (99 tests)
+  AudioSwitch.Audio.Tests/  # empty scaffold; COM is not unit-tested
 ```
 
-## Profile JSON Schema
+### AudioSwitch.Core — domain
+- **Models:** `Component` (abstract) + `OutputDeviceComponent`, `InputDeviceComponent`, `EqualizerComponent`, `SpatialAudioComponent`; `AudioProfile` (references components by id); `ComponentLibrary`; `ProfileStoreData`; enums `ThemePreference`, `WindowCloseBehavior`, `CloseAction`, `SpatialAudioMode`.
+- **Services:** `ProfileStore` (JSON load/save + quarantine on corruption), `ProfileManager` (CRUD + `ApplyProfile`), `ProfileApplier` (per-step `TryStep` orchestration), `HotkeyParser`, `EqualizerPresets`, `CloseBehaviorResolver`, `StartupRegistrationService`.
+- **Interfaces:** `IProfileStore`, `IProfileManager`, `IAudioDeviceService`, `IVolumeController`, `ISpatialAudioController`, `IHotkeyService`, `IRegistryStore`.
+
+### AudioSwitch.Audio — platform
+Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig` for default-device switching), `VolumeController`, `SpatialAudioController` (stub). These may throw HRESULT exceptions; the applier's `TryStep` converts them to data.
+
+### AudioSwitch.App — shell
+- **`App.xaml.cs`** — composition root. Reads command-line args (`--startup` suppresses window), builds `ThemeService`, `MainWindow`, `HotkeyService`, `AppHost`, `TrayIconHost`.
+- **`Composition/AppHost.cs`** — holds all services, exposes settings helpers (`SetThemePreference`, `SetCloseBehavior`, `SetStartWithWindows`), reconciles hardware on launch.
+- **`Services/ThemeService.cs`** — System / Light / Dark resource-dictionary swap.
+- **`Services/HotkeyService.cs`** — `WM_HOTKEY` hook via `HwndSource`.
+- **`Services/TrayIconHost.cs`** — `TaskbarIcon` owner. Tooltip bound to active profile. Context menu: Show, Apply profile submenu, Start with Windows (checkable), Exit. Also handles the close-prompt flow when `MainWindow.Closing` fires.
+- **`Services/WindowsRegistryStore.cs`** — `Microsoft.Win32` impl of `IRegistryStore`.
+- **`MainWindow.xaml`** — 4-column node-link UI (Outputs / Inputs / Equalizers / Link configs). Bezier curves overlay `LinkCanvas` connecting selections. Intercepts `Closing` and delegates to `TrayIconHost`.
+- **`Views/EqualizerEditorWindow.xaml`** — 10-band modal.
+- **`Views/NameEditorWindow.xaml`** — generic name prompt (rename / save-as).
+- **`Views/CloseChoiceWindow.xaml`** — Minimize / Close / Cancel + "Don't ask again".
+- **`Themes/Dark.xaml` + `Light.xaml`** — resource dictionaries.
+- **`Assets/audio-switch.ico`** — multi-resolution tray / taskbar icon.
+
+## Profile model
+
+Profile = named bundle of `ComponentIds[]`. Components are stored once in `ComponentLibrary` and referenced by id.
 
 ```json
 {
+  "schemaVersion": 2,
+  "library": {
+    "outputs":      [{ "id": "guid", "name": "...", "deviceId": "...", "volume": 80 }],
+    "inputs":       [{ "id": "guid", "name": "...", "deviceId": "...", "volume": 80 }],
+    "equalizers":   [{ "id": "guid", "name": "...", "bands": [...] }],
+    "spatialModes": [{ "id": "guid", "name": "...", "mode": "DolbyAtmos" }]
+  },
   "profiles": [
-    {
-      "name": "Teams Call",
-      "hotkey": "Ctrl+Shift+1",
-      "inputDevice": {
-        "id": "{0.0.1.00000000}.{guid}",
-        "name": "USB Headset Mic"
-      },
-      "outputDevice": {
-        "id": "{0.0.0.00000000}.{guid}",
-        "name": "USB Headset"
-      },
-      "spatialMode": "Stereo",
-      "inputVolume": 80,
-      "outputVolume": 65
-    }
+    { "name": "Gaming", "hotkey": "Ctrl+Shift+1", "componentIds": ["guid", "guid"] }
   ],
-  "activeProfile": "Teams Call"
+  "activeProfile": "Gaming",
+  "themePreference": "System",
+  "closeBehavior": "Prompt"
 }
 ```
 
-Profiles stored at: `%APPDATA%/AudioSwitch/profiles.json`
+## Apply flow
 
-## Key Dependencies
+```
+User → hotkey / double-click / tray menu
+  → ProfileManager.ApplyProfile(name)
+    → ProfileApplier.Apply(profile, library)
+      → TryStep(SetDefault render)       ──► CoreAudioController (COM)
+      → TryStep(SetDefault capture)      ──► CoreAudioController (COM)
+      → TryStep(SetVolume output)        ──► VolumeController (COM)
+      → TryStep(SetVolume input)         ──► VolumeController (COM)
+      → TryStep(SetMode spatial)         ──► SpatialAudioController
+    → returns ProfileApplyResult { Profile, Errors[] }
+  → _data.ActiveProfile = name; store.Save(_data)
+  → ProfileApplied event → MainWindow status bar + TrayIconHost tooltip
+```
+
+Errors are data, not exceptions. The profile is still marked active and persisted even on partial failure.
+
+## Graceful failure invariants
+- Corrupt / old-schema `profiles.json` → renamed to `.corrupt-{utc-timestamp}`; empty data returned.
+- Forward-compat load: new top-level fields default-initialize when absent (no quarantine).
+- `Unregister` is idempotent; `SetStartWithWindows(false)` safe when nothing is registered.
+- Hotkey registration for a missing profile is wrapped in `try { ... } catch { }` — delete-races are benign.
+
+## Tray + window lifecycle
+- `Application.ShutdownMode = OnExplicitShutdown`; closing `MainWindow` never shuts the app down unless `TrayIconHost` escalates.
+- `MainWindow.Closing` → `TrayIconHost.RequestClose()`:
+  - `Prompt` (default) → `CloseChoiceWindow`; user picks Minimize / Close / Cancel. If "Don't ask again" is ticked, the chosen action becomes the persisted `CloseBehavior` via `CloseBehaviorResolver`.
+  - `MinimizeToTray` → `Hide()`, window stays in tray.
+  - `Exit` → `Application.Shutdown()` (tray host sets `_exiting` so the Closing handler lets the close proceed).
+- Tray left-click / double-click → `Show + Activate`.
+- Tray "Start with Windows" → registers HKCU Run key value `AudioSwitch` with `"<path>" --startup`; auto-launched instance hides `MainWindow`.
+
+## Test strategy
+- **Unit-test Core.** Everything testable without WPF / COM lives here: `ProfileStore`, `ProfileManager`, `ProfileApplier`, `HotkeyParser`, `EqualizerPresets`, `CloseBehaviorResolver`, `StartupRegistrationService`, `ComponentLibrary`, `EqualizerComponent`.
+- **Fakes over mocks.** `tests/AudioSwitch.Core.Tests/Fakes/` contains `FakeAudioDeviceService`, `FakeVolumeController`, `FakeSpatialAudioController`, `FakeProfileStore`, `InMemoryRegistryStore`.
+- **Happy / Sad sections.** Sad-path tests carry a 5W XML doc (Who / What / Why / Where / How) — see `CODING_STANDARDS.md` §6.
+- **WPF and COM are not unit-tested.** The `AudioSwitch.Audio.Tests` project is an empty scaffold. UI changes are smoke-tested manually (launch → exercise → verify).
+
+## Key dependencies
 | Package | Purpose |
 |---|---|
-| NAudio | Core Audio API COM interop (MMDevice enumeration, endpoint control) |
-| Hardcodet.NotifyIcon.Wpf | System tray icon with WPF context menu support |
-| CommunityToolkit.Mvvm | MVVM source generators (ObservableProperty, RelayCommand) |
-| System.Text.Json | Profile serialization |
+| `Hardcodet.NotifyIcon.Wpf` | System tray icon |
+| `CommunityToolkit.Mvvm` | MVVM source generators (reserved; not yet used broadly) |
+| `Microsoft.Win32.Registry` (via `WindowsBase`) | HKCU Run-key access |
 
-## V2 Extension Point: Equalizer
-The `AudioSwitch.Audio` project will gain an `EqualizerController.cs` that swaps Equalizer APO config files per profile. Each profile will reference an APO config file. No real-time DSP — config file swap only, zero latency.
+## Untouched V2 surface
+- **Equalizer APO wiring.** `EqualizerComponent.Bands` values persist through the library but aren't yet swapped into a live APO config. Zero-latency principle still applies — config-file swap, not DSP.
+- **Spatial audio controller.** Currently a stub returning `Stereo`.

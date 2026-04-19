@@ -32,6 +32,10 @@ public sealed class ProfileManager : IProfileManager
     public AudioProfile? ActiveProfile =>
         _data.ActiveProfile is null ? null : FindProfile(_data.ActiveProfile);
 
+    public ThemePreference ThemePreference => _data.ThemePreference;
+
+    public WindowCloseBehavior CloseBehavior => _data.CloseBehavior;
+
     public event EventHandler? LibraryChanged;
 
     public event EventHandler? ProfilesChanged;
@@ -149,6 +153,12 @@ public sealed class ProfileManager : IProfileManager
         _data.ActiveProfile = name;
         _store.Save(_data);
         ProfileApplied?.Invoke(this, result);
+    }
+
+    public void PersistSetting(Action<ProfileStoreData> mutator)
+    {
+        mutator(_data);
+        _store.Save(_data);
     }
 
     private AudioProfile? FindProfile(string name) =>

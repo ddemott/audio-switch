@@ -11,4 +11,6 @@ public sealed class ProfileStoreData
     public string? ActiveProfile { get; set; }
 
     public ThemePreference ThemePreference { get; set; } = ThemePreference.System;
+
+    public WindowCloseBehavior CloseBehavior { get; set; } = WindowCloseBehavior.Prompt;
 }

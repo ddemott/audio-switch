@@ -10,6 +10,10 @@ public interface IProfileManager
 
     AudioProfile? ActiveProfile { get; }
 
+    ThemePreference ThemePreference { get; }
+
+    WindowCloseBehavior CloseBehavior { get; }
+
     event EventHandler? LibraryChanged;
 
     event EventHandler? ProfilesChanged;
@@ -31,4 +35,6 @@ public interface IProfileManager
     void RemoveProfile(string name);
 
     void ApplyProfile(string name);
+
+    void PersistSetting(Action<ProfileStoreData> mutator);
 }

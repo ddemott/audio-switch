@@ -7,10 +7,7 @@
     <DockPanel Margin="18">
         <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,14">
             <TextBlock Text="Name" VerticalAlignment="Center" Margin="0,0,10,0" />
-            <TextBox x:Name="NameBox"
-                     Background="{DynamicResource SurfaceElevated}" Foreground="{DynamicResource TextPrimary}"
-                     CaretBrush="{DynamicResource TextPrimary}"
-                     BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="6,4" FontSize="14" />
+            <TextBox x:Name="NameBox" />
         </DockPanel>
 
         <DockPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">

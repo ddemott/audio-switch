@@ -1,12 +1,11 @@
 <Window x:Class="AudioSwitch.App.Views.NameEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Rename" Height="150" Width="420"
+        Title="Rename" SizeToContent="Height" Width="420"
         Background="{DynamicResource SurfaceDefault}" Foreground="{DynamicResource TextPrimary}"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
         FocusManager.FocusedElement="{Binding ElementName=NameBox}">
     <DockPanel Margin="18">
-        <TextBlock x:Name="PromptText" DockPanel.Dock="Top" Margin="0,0,0,10" Text="New name" />
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Content="Cancel" Padding="14,6" Margin="0,0,8,0"
                     Background="{DynamicResource BorderSubtle}" Foreground="{DynamicResource TextPrimary}"
@@ -15,10 +14,6 @@
                     Background="{DynamicResource AccentEq}" Foreground="{DynamicResource TextOnAccent}"
                     BorderThickness="0" FontWeight="SemiBold" Click="Ok_Click" />
         </StackPanel>
-        <TextBox x:Name="NameBox"
-                 Background="{DynamicResource SurfaceElevated}" Foreground="{DynamicResource TextPrimary}"
-                 CaretBrush="{DynamicResource TextPrimary}"
-                 SelectionBrush="{DynamicResource AccentEq}" SelectionOpacity="0.4"
-                 BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="6,4" FontSize="14" />
+        <TextBox x:Name="NameBox" />
     </DockPanel>
 </Window>

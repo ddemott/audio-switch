@@ -9,23 +9,21 @@ namespace AudioSwitch.App.Composition;
 
 public sealed class AppHost : IDisposable
 {
-    private readonly ProfileStoreData _storeDataAtInit;
-
     public AppHost(IHotkeyService hotkeyService, ThemeService themeService, Application application)
     {
         var deviceService = new CoreAudioController();
         var volumeController = new VolumeController();
         var spatialController = new SpatialAudioController();
         ProfileStore = new ProfileStore();
-        _storeDataAtInit = ProfileStore.Load();
         ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController);
         DeviceService = deviceService;
         VolumeController = volumeController;
         SpatialController = spatialController;
         HotkeyService = hotkeyService;
         ThemeService = themeService;
+        StartupRegistration = new StartupRegistrationService(new WindowsRegistryStore());
 
-        ThemeService.Apply(_storeDataAtInit.ThemePreference);
+        ThemeService.Apply(ProfileManager.ThemePreference);
 
         SyncHardwareToLibrary();
         RegisterAllHotkeys();
@@ -46,12 +44,31 @@ public sealed class AppHost : IDisposable
 
     public ThemeService ThemeService { get; }
 
+    public StartupRegistrationService StartupRegistration { get; }
+
     public void SetThemePreference(ThemePreference preference)
     {
         ThemeService.Apply(preference);
-        var data = ProfileStore.Load();
-        data.ThemePreference = preference;
-        ProfileStore.Save(data);
+        ProfileManager.PersistSetting(d => d.ThemePreference = preference);
+    }
+
+    public void SetCloseBehavior(WindowCloseBehavior behavior) =>
+        ProfileManager.PersistSetting(d => d.CloseBehavior = behavior);
+
+    public bool IsStartWithWindowsEnabled => StartupRegistration.IsRegistered();
+
+    public void SetStartWithWindows(bool enabled)
+    {
+        if (enabled)
+        {
+            var path = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(path)) return;
+            StartupRegistration.Register($"\"{path}\" {App.StartupArg}");
+        }
+        else
+        {
+            StartupRegistration.Unregister();
+        }
     }
 
     public void Dispose()

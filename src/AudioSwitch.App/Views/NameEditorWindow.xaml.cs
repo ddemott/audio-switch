@@ -5,11 +5,10 @@ namespace AudioSwitch.App.Views;
 
 public partial class NameEditorWindow : Window
 {
-    public NameEditorWindow(string title, string prompt, string initial)
+    public NameEditorWindow(string title, string initial)
     {
         InitializeComponent();
         Title = title;
-        PromptText.Text = prompt;
         NameBox.Text = initial;
         Loaded += OnLoaded;
     }
