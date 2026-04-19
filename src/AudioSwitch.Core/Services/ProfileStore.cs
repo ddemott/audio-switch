@@ -8,6 +8,8 @@ namespace AudioSwitch.Core.Services;
 
 public sealed class ProfileStore : IProfileStore
 {
+    public const int CurrentSchemaVersion = 2;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -45,31 +47,25 @@ public sealed class ProfileStore : IProfileStore
 
         try
         {
-            return JsonSerializer.Deserialize<ProfileStoreData>(json, JsonOptions)
-                ?? new ProfileStoreData();
+            var data = JsonSerializer.Deserialize<ProfileStoreData>(json, JsonOptions);
+            if (data is null || data.SchemaVersion < CurrentSchemaVersion)
+            {
+                QuarantineFile();
+                return new ProfileStoreData();
+            }
+            return data;
         }
         catch (JsonException)
         {
-            QuarantineCorruptFile();
+            QuarantineFile();
             return new ProfileStoreData();
-        }
-    }
-
-    private void QuarantineCorruptFile()
-    {
-        var backup = $"{_filePath}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
-        try
-        {
-            File.Move(_filePath, backup, overwrite: true);
-        }
-        catch
-        {
-            // Best-effort: if we can't even move it, leave the file and let the next save overwrite.
         }
     }
 
     public void Save(ProfileStoreData data)
     {
+        data.SchemaVersion = CurrentSchemaVersion;
+
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
         {
@@ -87,6 +83,19 @@ public sealed class ProfileStore : IProfileStore
         else
         {
             File.Move(tempPath, _filePath);
+        }
+    }
+
+    private void QuarantineFile()
+    {
+        var backup = $"{_filePath}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+        try
+        {
+            File.Move(_filePath, backup, overwrite: true);
+        }
+        catch
+        {
+            // Best-effort: if we can't even move it, leave the file and let the next save overwrite.
         }
     }
 }

@@ -5,7 +5,7 @@ namespace AudioSwitch.Core.Services;
 
 internal interface IProfileApplier
 {
-    ProfileApplyResult Apply(AudioProfile profile);
+    ProfileApplyResult Apply(AudioProfile profile, ComponentLibrary library);
 }
 
 internal sealed class ProfileApplier : IProfileApplier
@@ -24,36 +24,61 @@ internal sealed class ProfileApplier : IProfileApplier
         _spatialAudioController = spatialAudioController;
     }
 
-    public ProfileApplyResult Apply(AudioProfile profile)
+    public ProfileApplyResult Apply(AudioProfile profile, ComponentLibrary library)
     {
         var errors = new List<ProfileApplyStepError>();
-        if (profile.OutputDevice is { } output)
+        var components = ResolveAll(profile, library, errors);
+        var outputs = components.OfType<OutputDeviceComponent>().ToList();
+        var inputs = components.OfType<InputDeviceComponent>().ToList();
+        var spatials = components.OfType<SpatialAudioComponent>().ToList();
+
+        foreach (var output in outputs)
         {
-            ApplyOutput(output, profile.SpatialMode, profile.OutputVolume, errors);
+            ApplyOutput(output, spatials, errors);
         }
-        if (profile.InputDevice is { } input)
+        foreach (var input in inputs)
         {
-            ApplyInput(input, profile.InputVolume, errors);
+            ApplyInput(input, errors);
         }
+
         return new ProfileApplyResult(profile, errors);
     }
 
-    private void ApplyOutput(DeviceRef device, SpatialAudioMode mode, int volume, List<ProfileApplyStepError> errors)
+    private void ApplyOutput(OutputDeviceComponent output, List<SpatialAudioComponent> spatials, List<ProfileApplyStepError> errors)
     {
-        TryStep(errors, "SetDefaultOutput", device.Id, () =>
-            _deviceService.SetDefault(device.Id, AudioDeviceDirection.Render));
-        TryStep(errors, "SetSpatialMode", device.Id, () =>
-            _spatialAudioController.SetMode(device.Id, mode));
-        TryStep(errors, "SetOutputVolume", device.Id, () =>
-            _volumeController.SetVolume(device.Id, AudioDeviceDirection.Render, volume));
+        TryStep(errors, "SetDefaultOutput", output.DeviceId, () =>
+            _deviceService.SetDefault(output.DeviceId, AudioDeviceDirection.Render));
+        TryStep(errors, "SetOutputVolume", output.DeviceId, () =>
+            _volumeController.SetVolume(output.DeviceId, AudioDeviceDirection.Render, output.Volume));
+        foreach (var s in spatials)
+        {
+            TryStep(errors, "SetSpatialMode", output.DeviceId, () =>
+                _spatialAudioController.SetMode(output.DeviceId, s.Mode));
+        }
     }
 
-    private void ApplyInput(DeviceRef device, int volume, List<ProfileApplyStepError> errors)
+    private void ApplyInput(InputDeviceComponent input, List<ProfileApplyStepError> errors)
     {
-        TryStep(errors, "SetDefaultInput", device.Id, () =>
-            _deviceService.SetDefault(device.Id, AudioDeviceDirection.Capture));
-        TryStep(errors, "SetInputVolume", device.Id, () =>
-            _volumeController.SetVolume(device.Id, AudioDeviceDirection.Capture, volume));
+        TryStep(errors, "SetDefaultInput", input.DeviceId, () =>
+            _deviceService.SetDefault(input.DeviceId, AudioDeviceDirection.Capture));
+        TryStep(errors, "SetInputVolume", input.DeviceId, () =>
+            _volumeController.SetVolume(input.DeviceId, AudioDeviceDirection.Capture, input.Volume));
+    }
+
+    private static List<Component> ResolveAll(AudioProfile profile, ComponentLibrary library, List<ProfileApplyStepError> errors)
+    {
+        var result = new List<Component>(profile.ComponentIds.Count);
+        foreach (var id in profile.ComponentIds)
+        {
+            var component = library.FindById(id);
+            if (component is null)
+            {
+                errors.Add(new ProfileApplyStepError("ResolveComponent", id, $"Component '{id}' not found in library"));
+                continue;
+            }
+            result.Add(component);
+        }
+        return result;
     }
 
     private static void TryStep(List<ProfileApplyStepError> errors, string step, string deviceId, Action action)

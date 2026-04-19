@@ -18,9 +18,13 @@ public partial class MainWindow : Window
         _host = host;
         RefreshDevices();
         RefreshProfiles();
+        RefreshLibrary();
         _host.ProfileManager.ProfilesChanged += (_, _) => Dispatcher.Invoke(RefreshProfiles);
+        _host.ProfileManager.LibraryChanged += (_, _) => Dispatcher.Invoke(RefreshLibrary);
         _host.ProfileManager.ProfileApplied += (_, result) => Dispatcher.Invoke(() => ShowApplyResult(result));
     }
+
+    // === Device pane ===
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshDevices();
 
@@ -40,21 +44,44 @@ public partial class MainWindow : Window
 
         var input = InputDevicesList.SelectedItem as AudioDevice;
         var slot = NextAvailableSlot();
-        var name = input is null ? output.Name : $"{output.Name} + {input.Name}";
+
+        var outputComponent = new OutputDeviceComponent
+        {
+            Name = output.Name,
+            DeviceId = output.Id,
+            Volume = 80,
+        };
+        InputDeviceComponent? inputComponent = null;
+        if (input is not null)
+        {
+            inputComponent = new InputDeviceComponent
+            {
+                Name = input.Name,
+                DeviceId = input.Id,
+                Volume = 80,
+            };
+        }
+
+        _host.ProfileManager.AddComponent(outputComponent);
+        if (inputComponent is not null)
+        {
+            _host.ProfileManager.AddComponent(inputComponent);
+        }
+
+        var profileName = inputComponent is null ? output.Name : $"{output.Name} + {input!.Name}";
         var profile = new AudioProfile
         {
-            Name = name,
+            Name = profileName,
             Hotkey = $"Ctrl+Shift+{slot}",
-            OutputDevice = new DeviceRef { Id = output.Id, Name = output.Name },
-            InputDevice = input is null ? null : new DeviceRef { Id = input.Id, Name = input.Name },
-            OutputVolume = 80,
-            InputVolume = 80,
+            ComponentIds = inputComponent is null
+                ? new List<string> { outputComponent.Id }
+                : new List<string> { outputComponent.Id, inputComponent.Id },
         };
 
         try
         {
             _host.ProfileManager.AddProfile(profile);
-            var pairing = input is null ? "output only" : "output + input";
+            var pairing = inputComponent is null ? "output only" : "output + input";
             StatusText.Text = $"Saved profile '{profile.Name}' ({pairing}) with hotkey {profile.Hotkey}.";
         }
         catch (InvalidOperationException ex)
@@ -62,6 +89,8 @@ public partial class MainWindow : Window
             StatusText.Text = ex.Message;
         }
     }
+
+    // === Profile pane ===
 
     private void ApplyButton_Click(object sender, RoutedEventArgs e) => ApplySelected();
 
@@ -92,7 +121,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void DeleteButton_Click(object sender, RoutedEventArgs e)
+    private void DeleteProfileButton_Click(object sender, RoutedEventArgs e)
     {
         if (_host is null || ProfilesList.SelectedItem is not AudioProfile profile)
         {
@@ -102,6 +131,21 @@ public partial class MainWindow : Window
         _host.ProfileManager.RemoveProfile(profile.Name);
         StatusText.Text = $"Removed profile '{profile.Name}'.";
     }
+
+    private void DeleteComponentButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_host is null || LibraryList.SelectedItem is not LibraryRow row)
+        {
+            StatusText.Text = "Select a component first.";
+            return;
+        }
+        if (_host.ProfileManager.RemoveComponent(row.Component.Id))
+        {
+            StatusText.Text = $"Removed component '{row.Component.Name}'.";
+        }
+    }
+
+    // === Refresh helpers ===
 
     private void RefreshDevices()
     {
@@ -118,6 +162,15 @@ public partial class MainWindow : Window
         if (_host is null) return;
         ProfilesList.ItemsSource = null;
         ProfilesList.ItemsSource = _host.ProfileManager.Profiles;
+    }
+
+    private void RefreshLibrary()
+    {
+        if (_host is null) return;
+        LibraryList.ItemsSource = null;
+        LibraryList.ItemsSource = _host.ProfileManager.Library.All
+            .Select(c => new LibraryRow(LabelFor(c), c))
+            .ToList();
     }
 
     private void ShowApplyResult(ProfileApplyResult result)
@@ -150,6 +203,15 @@ public partial class MainWindow : Window
         return 1;
     }
 
+    private static string LabelFor(Component c) => c switch
+    {
+        OutputDeviceComponent => "Output",
+        InputDeviceComponent => "Input",
+        SpatialAudioComponent => "Spatial",
+        EqualizerComponent => "Equalizer",
+        _ => "Component",
+    };
+
     private static T? FindAncestor<T>(System.Windows.DependencyObject start) where T : System.Windows.DependencyObject
     {
         var current = start;
@@ -160,4 +222,6 @@ public partial class MainWindow : Window
         }
         return null;
     }
+
+    public sealed record LibraryRow(string TypeLabel, Component Component);
 }

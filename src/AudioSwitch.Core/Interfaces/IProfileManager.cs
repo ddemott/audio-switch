@@ -4,13 +4,21 @@ namespace AudioSwitch.Core.Interfaces;
 
 public interface IProfileManager
 {
+    ComponentLibrary Library { get; }
+
     IReadOnlyList<AudioProfile> Profiles { get; }
 
     AudioProfile? ActiveProfile { get; }
 
+    event EventHandler? LibraryChanged;
+
     event EventHandler? ProfilesChanged;
 
     event EventHandler<ProfileApplyResult>? ProfileApplied;
+
+    bool AddComponent(Component component);
+
+    bool RemoveComponent(string componentId);
 
     void AddProfile(AudioProfile profile);
 

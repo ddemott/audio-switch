@@ -25,14 +25,52 @@ public sealed class ProfileManager : IProfileManager
         _data = store.Load();
     }
 
+    public ComponentLibrary Library => _data.Library;
+
     public IReadOnlyList<AudioProfile> Profiles => _data.Profiles;
 
     public AudioProfile? ActiveProfile =>
         _data.ActiveProfile is null ? null : FindProfile(_data.ActiveProfile);
 
+    public event EventHandler? LibraryChanged;
+
     public event EventHandler? ProfilesChanged;
 
     public event EventHandler<ProfileApplyResult>? ProfileApplied;
+
+    public bool AddComponent(Component component)
+    {
+        if (!_data.Library.Add(component))
+        {
+            return false;
+        }
+        _store.Save(_data);
+        LibraryChanged?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    public bool RemoveComponent(string componentId)
+    {
+        if (!_data.Library.Remove(componentId))
+        {
+            return false;
+        }
+        var changedProfiles = false;
+        foreach (var profile in _data.Profiles)
+        {
+            if (profile.ComponentIds.RemoveAll(id => id == componentId) > 0)
+            {
+                changedProfiles = true;
+            }
+        }
+        _store.Save(_data);
+        LibraryChanged?.Invoke(this, EventArgs.Empty);
+        if (changedProfiles)
+        {
+            ProfilesChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return true;
+    }
 
     public void AddProfile(AudioProfile profile)
     {
@@ -41,7 +79,7 @@ public sealed class ProfileManager : IProfileManager
             throw new InvalidOperationException($"Profile '{profile.Name}' already exists.");
         }
         _data.Profiles.Add(profile);
-        Persist();
+        PersistProfiles();
     }
 
     public void UpdateProfile(AudioProfile profile)
@@ -52,7 +90,7 @@ public sealed class ProfileManager : IProfileManager
             throw new InvalidOperationException($"Profile '{profile.Name}' not found.");
         }
         _data.Profiles[index] = profile;
-        Persist();
+        PersistProfiles();
     }
 
     public void RemoveProfile(string name)
@@ -65,7 +103,7 @@ public sealed class ProfileManager : IProfileManager
         {
             _data.ActiveProfile = null;
         }
-        Persist();
+        PersistProfiles();
     }
 
     public void ApplyProfile(string name)
@@ -73,7 +111,7 @@ public sealed class ProfileManager : IProfileManager
         var profile = FindProfile(name)
             ?? throw new InvalidOperationException($"Profile '{name}' not found.");
 
-        var result = _applier.Apply(profile);
+        var result = _applier.Apply(profile, _data.Library);
         _data.ActiveProfile = name;
         _store.Save(_data);
         ProfileApplied?.Invoke(this, result);
@@ -82,7 +120,7 @@ public sealed class ProfileManager : IProfileManager
     private AudioProfile? FindProfile(string name) =>
         _data.Profiles.FirstOrDefault(p => p.Name == name);
 
-    private void Persist()
+    private void PersistProfiles()
     {
         _store.Save(_data);
         ProfilesChanged?.Invoke(this, EventArgs.Empty);

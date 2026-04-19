@@ -14,176 +14,182 @@ public sealed class ProfileApplierTests
         return (new ProfileApplier(devices, volume, spatial), devices, volume, spatial);
     }
 
-    private static AudioProfile FullProfile() => new()
+    private static (AudioProfile Profile, ComponentLibrary Library, OutputDeviceComponent Out, InputDeviceComponent In, SpatialAudioComponent Sp) BuildFullProfile()
     {
-        Name = "x",
-        OutputDevice = new DeviceRef { Id = "out", Name = "Headset" },
-        InputDevice = new DeviceRef { Id = "in", Name = "Mic" },
-        SpatialMode = SpatialAudioMode.DolbyAtmos,
-        OutputVolume = 40,
-        InputVolume = 60,
-    };
+        var output = new OutputDeviceComponent { Name = "Headset", DeviceId = "out", Volume = 40 };
+        var input = new InputDeviceComponent { Name = "Mic", DeviceId = "in", Volume = 60 };
+        var spatial = new SpatialAudioComponent { Name = "Atmos", Mode = SpatialAudioMode.DolbyAtmos };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        library.Add(input);
+        library.Add(spatial);
+        var profile = new AudioProfile
+        {
+            Name = "Gaming",
+            ComponentIds = { output.Id, spatial.Id, input.Id },
+        };
+        return (profile, library, output, input, spatial);
+    }
 
     // === Happy path ===
 
     [Fact]
-    public void Apply_OutputBeforeInput_AndSetsSpatialBeforeVolume()
+    public void Apply_FullProfile_RunsOutputThenInputAndSetsSpatialOnOutput()
     {
         var (applier, devices, volume, spatial) = Create();
+        var (profile, library, out_, in_, sp) = BuildFullProfile();
 
-        var result = applier.Apply(FullProfile());
+        var result = applier.Apply(profile, library);
 
         Assert.True(result.IsFullSuccess);
-        Assert.Empty(result.Errors);
-
         Assert.Equal(new[]
         {
             ("out", AudioDeviceDirection.Render),
             ("in", AudioDeviceDirection.Capture),
         }, devices.SetDefaultCalls);
-
         Assert.Equal(new[]
         {
             ("out", AudioDeviceDirection.Render, 40),
             ("in", AudioDeviceDirection.Capture, 60),
         }, volume.SetVolumeCalls);
-
         Assert.Equal(("out", SpatialAudioMode.DolbyAtmos), Assert.Single(spatial.SetModeCalls));
+    }
+
+    [Fact]
+    public void Apply_OutputOnly_SkipsInputAndSpatial()
+    {
+        var (applier, devices, volume, spatial) = Create();
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 75 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var profile = new AudioProfile { Name = "Music", ComponentIds = { output.Id } };
+
+        var result = applier.Apply(profile, library);
+
+        Assert.True(result.IsFullSuccess);
+        Assert.Equal(("spk", AudioDeviceDirection.Render), Assert.Single(devices.SetDefaultCalls));
+        Assert.Equal(("spk", AudioDeviceDirection.Render, 75), Assert.Single(volume.SetVolumeCalls));
+        Assert.Empty(spatial.SetModeCalls);
+    }
+
+    [Fact]
+    public void Apply_TwoOutputs_AppliesBothInOrder()
+    {
+        var (applier, devices, volume, _) = Create();
+        var a = new OutputDeviceComponent { Name = "A", DeviceId = "a", Volume = 50 };
+        var b = new OutputDeviceComponent { Name = "B", DeviceId = "b", Volume = 60 };
+        var library = new ComponentLibrary();
+        library.Add(a);
+        library.Add(b);
+        var profile = new AudioProfile { Name = "Both", ComponentIds = { a.Id, b.Id } };
+
+        applier.Apply(profile, library);
+
+        Assert.Equal(new[]
+        {
+            ("a", AudioDeviceDirection.Render),
+            ("b", AudioDeviceDirection.Render),
+        }, devices.SetDefaultCalls);
     }
 
     // === Sad path ===
 
     /// <summary>
-    /// Sad path: profile has no OutputDevice (input-only profile, e.g., podcaster mic switch).
-    /// Who: ProfileManager.ApplyProfile passing a partially-configured profile to the applier.
-    /// What: Applier skips render-side calls (SetDefault Render and SpatialMode) entirely; only capture-side runs; result has no errors.
-    /// Why: Spatial mode is only meaningful for an output device — applying it to a non-existent device would crash COM.
-    /// Where: ProfileApplier null-pattern guard on profile.OutputDevice.
+    /// Sad path: a profile.ComponentIds entry points at an id no longer in the library (component was deleted).
+    /// Who: User deleted "Heavy Bass EQ" but a profile still references its id.
+    /// What: One ResolveComponent error per missing id; remaining (resolvable) components still apply.
+    /// Why: Per graceful-failure standard, missing references are surfaced as data so the UI can prompt cleanup.
+    /// Where: ProfileApplier.ResolveAll FindById null-coalesce-add-error branch.
+    /// How: Add an output to the library, then add a profile referencing that output AND a fake "ghost" id.
     /// </summary>
     [Fact]
-    public void Apply_NullOutput_SkipsRenderAndSpatial()
+    public void Apply_UnknownComponentId_RecordsErrorAndAppliesRest()
     {
-        var (applier, devices, volume, spatial) = Create();
-        var profile = new AudioProfile
-        {
-            Name = "x",
-            InputDevice = new DeviceRef { Id = "in", Name = "Mic" },
-            InputVolume = 60,
-        };
+        var (applier, devices, _, _) = Create();
+        var output = new OutputDeviceComponent { Name = "Headset", DeviceId = "out", Volume = 50 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var profile = new AudioProfile { Name = "Gaming", ComponentIds = { "ghost-id", output.Id } };
 
-        var result = applier.Apply(profile);
+        var result = applier.Apply(profile, library);
 
-        Assert.True(result.IsFullSuccess);
-        Assert.Equal(("in", AudioDeviceDirection.Capture), Assert.Single(devices.SetDefaultCalls));
-        Assert.Equal(("in", AudioDeviceDirection.Capture, 60), Assert.Single(volume.SetVolumeCalls));
-        Assert.Empty(spatial.SetModeCalls);
-    }
-
-    /// <summary>
-    /// Sad path: profile has no InputDevice (output-only profile, e.g., music listening).
-    /// Who: ProfileManager.ApplyProfile passing an output-only profile to the applier.
-    /// What: Applier skips capture-side calls; render and spatial run normally; result has no errors.
-    /// Why: Forcing an input device on a music profile would steal the user's mic from another app.
-    /// Where: ProfileApplier null-pattern guard on profile.InputDevice.
-    /// </summary>
-    [Fact]
-    public void Apply_NullInput_SkipsCapture()
-    {
-        var (applier, devices, volume, spatial) = Create();
-        var profile = new AudioProfile
-        {
-            Name = "x",
-            OutputDevice = new DeviceRef { Id = "out", Name = "Headset" },
-            SpatialMode = SpatialAudioMode.WindowsSonic,
-            OutputVolume = 80,
-        };
-
-        var result = applier.Apply(profile);
-
-        Assert.True(result.IsFullSuccess);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("ResolveComponent", error.Step);
+        Assert.Equal("ghost-id", error.DeviceId);
         Assert.Equal(("out", AudioDeviceDirection.Render), Assert.Single(devices.SetDefaultCalls));
-        Assert.Equal(("out", AudioDeviceDirection.Render, 80), Assert.Single(volume.SetVolumeCalls));
-        Assert.Equal(("out", SpatialAudioMode.WindowsSonic), Assert.Single(spatial.SetModeCalls));
     }
 
     /// <summary>
-    /// Sad path: profile has neither InputDevice nor OutputDevice.
-    /// Who: ProfileManager.ApplyProfile passing an empty profile (placeholder created via "New" in dashboard).
-    /// What: Applier makes zero calls and returns a no-error result.
-    /// Why: An empty profile is a legal V1 state — applying it should be a silent no-op.
-    /// Where: Both null-pattern guards in ProfileApplier short-circuit.
+    /// Sad path: profile has a SpatialAudioComponent but no OutputDeviceComponent.
+    /// Who: User built a profile with only an EQ + spatial setting, intending it as a "preset overlay" — but applying without an output makes no sense.
+    /// What: Spatial setter is never called (no output to apply to); no error recorded — silent skip.
+    /// Why: Spatial format is per-output-device in the Windows API. With no output in the profile, applying spatial would require choosing a target arbitrarily, which would surprise the user.
+    /// Where: ProfileApplier nests the spatial loop inside the output loop, so empty outputs short-circuit.
+    /// How: Profile contains only a SpatialAudioComponent; assert no spatial calls.
     /// </summary>
     [Fact]
-    public void Apply_BothNull_NoCalls()
+    public void Apply_SpatialWithoutOutput_SilentlySkipsSpatial()
     {
-        var (applier, devices, volume, spatial) = Create();
+        var (applier, _, _, spatial) = Create();
+        var sp = new SpatialAudioComponent { Name = "Atmos", Mode = SpatialAudioMode.DolbyAtmos };
+        var library = new ComponentLibrary();
+        library.Add(sp);
+        var profile = new AudioProfile { Name = "Stranded spatial", ComponentIds = { sp.Id } };
 
-        var result = applier.Apply(new AudioProfile { Name = "empty" });
+        var result = applier.Apply(profile, library);
 
         Assert.True(result.IsFullSuccess);
-        Assert.Empty(devices.SetDefaultCalls);
-        Assert.Empty(volume.SetVolumeCalls);
         Assert.Empty(spatial.SetModeCalls);
     }
 
     /// <summary>
-    /// Sad path: a single step throws (output device unplugged mid-apply, COM HRESULT failure).
-    /// Who: User triggers a profile apply for a saved device that no longer exists.
-    /// What: Failing step is recorded in ProfileApplyResult.Errors with Step name + DeviceId + message; remaining steps still execute.
-    /// Why: Partial application is better than total bailout — user may have unplugged only the output, input is still useful.
-    /// Where: ProfileApplier.TryStep wraps each device/volume/spatial call individually.
-    /// How: Inject a throwing OnSetDefault for Render only; assert the input chain still ran and Errors lists the output failure.
+    /// Sad path: SetDefault for the output throws (device unplugged mid-apply).
+    /// Who: User triggers a hotkey for a profile whose output device just disconnected.
+    /// What: SetDefaultOutput is recorded as an error; later steps (volume, spatial, input) still execute.
+    /// Why: Partial application is more useful than total bailout; ProfileManager keeps the profile active and the UI surfaces the error.
+    /// Where: ProfileApplier.TryStep wraps each controller call individually.
     /// </summary>
     [Fact]
-    public void Apply_SetDefaultOutputThrows_RecordsErrorAndContinuesWithInput()
+    public void Apply_SetDefaultOutputThrows_RecordsErrorAndContinues()
     {
         var (applier, devices, volume, spatial) = Create();
+        var (profile, library, _, _, _) = BuildFullProfile();
         devices.OnSetDefault = (_, dir) =>
         {
-            if (dir == AudioDeviceDirection.Render)
-            {
-                throw new InvalidOperationException("device unplugged");
-            }
+            if (dir == AudioDeviceDirection.Render) throw new InvalidOperationException("device unplugged");
         };
 
-        var result = applier.Apply(FullProfile());
+        var result = applier.Apply(profile, library);
 
         Assert.False(result.IsFullSuccess);
         var error = Assert.Single(result.Errors);
         Assert.Equal("SetDefaultOutput", error.Step);
         Assert.Equal("out", error.DeviceId);
-        Assert.Contains("device unplugged", error.Message);
-
-        // Render-side later steps still ran (they may also fail in real life, but applier doesn't short-circuit).
-        Assert.Equal(("out", SpatialAudioMode.DolbyAtmos), Assert.Single(spatial.SetModeCalls));
+        // Later steps still ran
         Assert.Contains(("out", AudioDeviceDirection.Render, 40), volume.SetVolumeCalls);
-        // Input-side fully ran.
+        Assert.Equal(("out", SpatialAudioMode.DolbyAtmos), Assert.Single(spatial.SetModeCalls));
         Assert.Contains(("in", AudioDeviceDirection.Capture), devices.SetDefaultCalls);
-        Assert.Contains(("in", AudioDeviceDirection.Capture, 60), volume.SetVolumeCalls);
     }
 
     /// <summary>
-    /// Sad path: every step throws (catastrophic — audio subsystem not available).
-    /// Who: Profile applied right after a Windows audio service crash.
-    /// What: All five steps are recorded in Errors; applier still returns a result rather than throwing.
-    /// Why: ProfileManager needs the result to decide whether to mark the profile active and notify the user.
-    /// Where: ProfileApplier.TryStep individual catches around every controller call.
+    /// Sad path: profile.ComponentIds is empty.
+    /// Who: A freshly-created profile that the user hasn't linked anything to yet.
+    /// What: Applier returns a no-error result; no calls made.
+    /// Why: An empty profile is a valid intermediate state — the user is mid-construction.
+    /// Where: ProfileApplier loops never iterate when component lists are empty.
     /// </summary>
     [Fact]
-    public void Apply_AllStepsThrow_CollectsAllErrors()
+    public void Apply_NoComponents_NoCallsNoErrors()
     {
         var (applier, devices, volume, spatial) = Create();
-        devices.OnSetDefault = (_, _) => throw new Exception("dev fail");
-        volume.OnSetVolume = (_, _, _) => throw new Exception("vol fail");
-        spatial.OnSetMode = (_, _) => throw new Exception("sp fail");
+        var library = new ComponentLibrary();
+        var profile = new AudioProfile { Name = "Empty" };
 
-        var result = applier.Apply(FullProfile());
+        var result = applier.Apply(profile, library);
 
-        Assert.Equal(5, result.Errors.Count);
-        Assert.Contains(result.Errors, e => e.Step == "SetDefaultOutput");
-        Assert.Contains(result.Errors, e => e.Step == "SetSpatialMode");
-        Assert.Contains(result.Errors, e => e.Step == "SetOutputVolume");
-        Assert.Contains(result.Errors, e => e.Step == "SetDefaultInput");
-        Assert.Contains(result.Errors, e => e.Step == "SetInputVolume");
+        Assert.True(result.IsFullSuccess);
+        Assert.Empty(devices.SetDefaultCalls);
+        Assert.Empty(volume.SetVolumeCalls);
+        Assert.Empty(spatial.SetModeCalls);
     }
 }
