@@ -163,6 +163,13 @@ public partial class MainWindow : Window
             menu.Items.Add(edit);
             menu.Items.Add(new Separator());
         }
+        else if (component is OutputDeviceComponent or InputDeviceComponent)
+        {
+            var rename = new MenuItem { Header = $"Rename '{component.Name}'..." };
+            rename.Click += (_, _) => PromptRenameComponent(component);
+            menu.Items.Add(rename);
+            menu.Items.Add(new Separator());
+        }
 
         var delete = new MenuItem { Header = $"Delete '{component.Name}'" };
         delete.Click += (_, _) =>
@@ -185,6 +192,20 @@ public partial class MainWindow : Window
         {
             _host.ProfileManager.UpdateComponent(eq);
             StatusText.Text = $"Updated '{eq.Name}'.";
+        }
+    }
+
+    private void PromptRenameComponent(Component component)
+    {
+        if (_host is null) return;
+        var dialog = new NameEditorWindow("Rename component", component.Name) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        var newName = dialog.EnteredName;
+        if (string.IsNullOrWhiteSpace(newName) || newName == component.Name) return;
+        component.Name = newName;
+        if (_host.ProfileManager.UpdateComponent(component))
+        {
+            StatusText.Text = $"Renamed to '{newName}'.";
         }
     }
 
