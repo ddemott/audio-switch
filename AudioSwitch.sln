@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1EA81607-C71D-4E94-AAA3-938C4A98E8AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioSwitch.App", "src\AudioSwitch.App\AudioSwitch.App.csproj", "{DC3B3A6F-97EB-4CFC-935E-91BE7F5C0A69}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioSwitch.Core", "src\AudioSwitch.Core\AudioSwitch.Core.csproj", "{4E790A28-35FE-458C-B3C9-6BA9E71BE7C9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioSwitch.Audio", "src\AudioSwitch.Audio\AudioSwitch.Audio.csproj", "{7D2CC3B7-35C2-4E81-968C-01CE825152A7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7308EE33-D815-4F33-8AA8-3772DD324577}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioSwitch.Core.Tests", "tests\AudioSwitch.Core.Tests\AudioSwitch.Core.Tests.csproj", "{AC1D6663-EDDF-4DE9-A6D9-ACC95F35FEDC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioSwitch.Audio.Tests", "tests\AudioSwitch.Audio.Tests\AudioSwitch.Audio.Tests.csproj", "{93B6EC4E-6D6F-4BE4-918E-F5C5008E8C55}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DC3B3A6F-97EB-4CFC-935E-91BE7F5C0A69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC3B3A6F-97EB-4CFC-935E-91BE7F5C0A69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC3B3A6F-97EB-4CFC-935E-91BE7F5C0A69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC3B3A6F-97EB-4CFC-935E-91BE7F5C0A69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E790A28-35FE-458C-B3C9-6BA9E71BE7C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E790A28-35FE-458C-B3C9-6BA9E71BE7C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E790A28-35FE-458C-B3C9-6BA9E71BE7C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E790A28-35FE-458C-B3C9-6BA9E71BE7C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D2CC3B7-35C2-4E81-968C-01CE825152A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D2CC3B7-35C2-4E81-968C-01CE825152A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D2CC3B7-35C2-4E81-968C-01CE825152A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D2CC3B7-35C2-4E81-968C-01CE825152A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC1D6663-EDDF-4DE9-A6D9-ACC95F35FEDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC1D6663-EDDF-4DE9-A6D9-ACC95F35FEDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC1D6663-EDDF-4DE9-A6D9-ACC95F35FEDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC1D6663-EDDF-4DE9-A6D9-ACC95F35FEDC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93B6EC4E-6D6F-4BE4-918E-F5C5008E8C55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93B6EC4E-6D6F-4BE4-918E-F5C5008E8C55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93B6EC4E-6D6F-4BE4-918E-F5C5008E8C55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93B6EC4E-6D6F-4BE4-918E-F5C5008E8C55}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DC3B3A6F-97EB-4CFC-935E-91BE7F5C0A69} = {1EA81607-C71D-4E94-AAA3-938C4A98E8AE}
+		{4E790A28-35FE-458C-B3C9-6BA9E71BE7C9} = {1EA81607-C71D-4E94-AAA3-938C4A98E8AE}
+		{7D2CC3B7-35C2-4E81-968C-01CE825152A7} = {1EA81607-C71D-4E94-AAA3-938C4A98E8AE}
+		{AC1D6663-EDDF-4DE9-A6D9-ACC95F35FEDC} = {7308EE33-D815-4F33-8AA8-3772DD324577}
+		{93B6EC4E-6D6F-4BE4-918E-F5C5008E8C55} = {7308EE33-D815-4F33-8AA8-3772DD324577}
+	EndGlobalSection
+EndGlobal
