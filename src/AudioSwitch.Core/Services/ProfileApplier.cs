@@ -13,15 +13,18 @@ internal sealed class ProfileApplier : IProfileApplier
     private readonly IAudioDeviceService _deviceService;
     private readonly IVolumeController _volumeController;
     private readonly ISpatialAudioController _spatialAudioController;
+    private readonly IApoConfigWriter _apoConfigWriter;
 
     public ProfileApplier(
         IAudioDeviceService deviceService,
         IVolumeController volumeController,
-        ISpatialAudioController spatialAudioController)
+        ISpatialAudioController spatialAudioController,
+        IApoConfigWriter apoConfigWriter)
     {
         _deviceService = deviceService;
         _volumeController = volumeController;
         _spatialAudioController = spatialAudioController;
+        _apoConfigWriter = apoConfigWriter;
     }
 
     public ProfileApplyResult Apply(AudioProfile profile, ComponentLibrary library)
@@ -31,6 +34,7 @@ internal sealed class ProfileApplier : IProfileApplier
         var outputs = components.OfType<OutputDeviceComponent>().ToList();
         var inputs = components.OfType<InputDeviceComponent>().ToList();
         var spatials = components.OfType<SpatialAudioComponent>().ToList();
+        var equalizers = components.OfType<EqualizerComponent>().ToList();
 
         foreach (var output in outputs)
         {
@@ -40,8 +44,28 @@ internal sealed class ProfileApplier : IProfileApplier
         {
             ApplyInput(profile, input, errors);
         }
+        if (outputs.Count > 0 && equalizers.Count > 0)
+        {
+            ApplyEqualizer(equalizers[0], outputs, errors);
+        }
 
         return new ProfileApplyResult(profile, errors);
+    }
+
+    private void ApplyEqualizer(EqualizerComponent eq, List<OutputDeviceComponent> outputs, List<ProfileApplyStepError> errors)
+    {
+        var entries = outputs
+            .Select(o => new ApoDeviceEntry(o.Name, eq.Bands))
+            .ToList();
+        TryStep(errors, "WriteApoConfig", outputs[0].DeviceId, () =>
+        {
+            if (!_apoConfigWriter.IsAvailable)
+            {
+                throw new InvalidOperationException(
+                    "Equalizer APO is not installed — EQ bands not applied.");
+            }
+            _apoConfigWriter.Write(entries);
+        });
     }
 
     private void ApplyOutput(AudioProfile profile, OutputDeviceComponent output, List<SpatialAudioComponent> spatials, List<ProfileApplyStepError> errors)

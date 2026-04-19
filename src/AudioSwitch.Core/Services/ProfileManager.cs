@@ -13,8 +13,9 @@ public sealed class ProfileManager : IProfileManager
         IProfileStore store,
         IAudioDeviceService deviceService,
         IVolumeController volumeController,
-        ISpatialAudioController spatialAudioController)
-        : this(store, new ProfileApplier(deviceService, volumeController, spatialAudioController))
+        ISpatialAudioController spatialAudioController,
+        IApoConfigWriter apoConfigWriter)
+        : this(store, new ProfileApplier(deviceService, volumeController, spatialAudioController, apoConfigWriter))
     {
     }
 

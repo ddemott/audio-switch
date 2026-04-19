@@ -13,7 +13,8 @@ public sealed class ProfileManagerTests
         var devices = new FakeAudioDeviceService();
         var volume = new FakeVolumeController();
         var spatial = new FakeSpatialAudioController();
-        var manager = new ProfileManager(store, devices, volume, spatial);
+        var apo = new FakeApoConfigWriter();
+        var manager = new ProfileManager(store, devices, volume, spatial, apo);
         return (manager, store, devices, volume, spatial);
     }
 

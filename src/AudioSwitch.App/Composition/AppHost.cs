@@ -20,9 +20,10 @@ public sealed class AppHost : IDisposable
         var deviceService = new CoreAudioController();
         var volumeController = new VolumeController();
         var spatialController = new SpatialAudioController();
+        var apoConfigWriter = new ApoConfigWriter();
         var profilePath = Core.Services.ProfileStore.DefaultFilePath(baseDir);
         ProfileStore = new ProfileStore(profilePath);
-        ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController);
+        ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController, apoConfigWriter);
         DeviceService = deviceService;
         VolumeController = volumeController;
         SpatialController = spatialController;

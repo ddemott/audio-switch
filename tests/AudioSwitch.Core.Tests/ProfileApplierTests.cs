@@ -6,12 +6,13 @@ namespace AudioSwitch.Core.Tests;
 
 public sealed class ProfileApplierTests
 {
-    private static (ProfileApplier Applier, FakeAudioDeviceService Devices, FakeVolumeController Volume, FakeSpatialAudioController Spatial) Create()
+    private static (ProfileApplier Applier, FakeAudioDeviceService Devices, FakeVolumeController Volume, FakeSpatialAudioController Spatial, FakeApoConfigWriter Apo) Create()
     {
         var devices = new FakeAudioDeviceService();
         var volume = new FakeVolumeController();
         var spatial = new FakeSpatialAudioController();
-        return (new ProfileApplier(devices, volume, spatial), devices, volume, spatial);
+        var apo = new FakeApoConfigWriter();
+        return (new ProfileApplier(devices, volume, spatial, apo), devices, volume, spatial, apo);
     }
 
     private static (AudioProfile Profile, ComponentLibrary Library, OutputDeviceComponent Out, InputDeviceComponent In, SpatialAudioComponent Sp) BuildFullProfile()
@@ -36,7 +37,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_FullProfile_RunsOutputThenInputAndSetsSpatialOnOutput()
     {
-        var (applier, devices, volume, spatial) = Create();
+        var (applier, devices, volume, spatial, _) = Create();
         var (profile, library, out_, in_, sp) = BuildFullProfile();
 
         var result = applier.Apply(profile, library);
@@ -58,7 +59,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_OutputOnly_SkipsInputAndSpatial()
     {
-        var (applier, devices, volume, spatial) = Create();
+        var (applier, devices, volume, spatial, _) = Create();
         var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 75 };
         var library = new ComponentLibrary();
         library.Add(output);
@@ -75,7 +76,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_TwoOutputs_AppliesBothInOrder()
     {
-        var (applier, devices, volume, _) = Create();
+        var (applier, devices, volume, _, _) = Create();
         var a = new OutputDeviceComponent { Name = "A", DeviceId = "a", Volume = 50 };
         var b = new OutputDeviceComponent { Name = "B", DeviceId = "b", Volume = 60 };
         var library = new ComponentLibrary();
@@ -105,7 +106,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_UnknownComponentId_RecordsErrorAndAppliesRest()
     {
-        var (applier, devices, _, _) = Create();
+        var (applier, devices, _, _, _) = Create();
         var output = new OutputDeviceComponent { Name = "Headset", DeviceId = "out", Volume = 50 };
         var library = new ComponentLibrary();
         library.Add(output);
@@ -130,7 +131,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_SpatialWithoutOutput_SilentlySkipsSpatial()
     {
-        var (applier, _, _, spatial) = Create();
+        var (applier, _, _, spatial, _) = Create();
         var sp = new SpatialAudioComponent { Name = "Atmos", Mode = SpatialAudioMode.DolbyAtmos };
         var library = new ComponentLibrary();
         library.Add(sp);
@@ -152,7 +153,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_SetDefaultOutputThrows_RecordsErrorAndContinues()
     {
-        var (applier, devices, volume, spatial) = Create();
+        var (applier, devices, volume, spatial, _) = Create();
         var (profile, library, _, _, _) = BuildFullProfile();
         devices.OnSetDefault = (_, dir) =>
         {
@@ -181,7 +182,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_NoComponents_NoCallsNoErrors()
     {
-        var (applier, devices, volume, spatial) = Create();
+        var (applier, devices, volume, spatial, _) = Create();
         var library = new ComponentLibrary();
         var profile = new AudioProfile { Name = "Empty" };
 
@@ -198,7 +199,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_OutputVolumeOverride_UsesOverrideNotComponentDefault()
     {
-        var (applier, _, volume, _) = Create();
+        var (applier, _, volume, _, _) = Create();
         var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
         var library = new ComponentLibrary();
         library.Add(output);
@@ -217,7 +218,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_InputVolumeOverride_UsesOverrideNotComponentDefault()
     {
-        var (applier, _, volume, _) = Create();
+        var (applier, _, volume, _, _) = Create();
         var input = new InputDeviceComponent { Name = "Mic", DeviceId = "mic", Volume = 60 };
         var library = new ComponentLibrary();
         library.Add(input);
@@ -236,7 +237,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_NoOverride_FallsBackToComponentDefaultVolume()
     {
-        var (applier, _, volume, _) = Create();
+        var (applier, _, volume, _, _) = Create();
         var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
         var library = new ComponentLibrary();
         library.Add(output);
@@ -250,7 +251,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_TwoProfilesSameDeviceDifferentOverrides_SendDifferentVolumes()
     {
-        var (applier, _, volume, _) = Create();
+        var (applier, _, volume, _, _) = Create();
         var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
         var library = new ComponentLibrary();
         library.Add(output);
@@ -286,7 +287,7 @@ public sealed class ProfileApplierTests
     [Fact]
     public void Apply_OrphanedOverride_SilentlyIgnored()
     {
-        var (applier, _, volume, _) = Create();
+        var (applier, _, volume, _, _) = Create();
         var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
         var library = new ComponentLibrary();
         library.Add(output);
@@ -305,5 +306,108 @@ public sealed class ProfileApplierTests
 
         Assert.True(result.IsFullSuccess);
         Assert.Equal(("spk", AudioDeviceDirection.Render, 55), Assert.Single(volume.SetVolumeCalls));
+    }
+
+    // === Equalizer APO wiring ===
+
+    [Fact]
+    public void Apply_OutputAndEqualizer_ApoInstalled_WritesPerOutputDeviceBlock()
+    {
+        var (applier, _, _, _, apo) = Create();
+        apo.IsAvailable = true;
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 70 };
+        var eq = new EqualizerComponent { Name = "Bass +", Bands = new() { new() { Frequency = 60, Gain = 4.0 } } };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        library.Add(eq);
+        var profile = new AudioProfile { Name = "Cinema", ComponentIds = { output.Id, eq.Id } };
+
+        var result = applier.Apply(profile, library);
+
+        Assert.True(result.IsFullSuccess);
+        var entries = Assert.Single(apo.WriteCalls);
+        var entry = Assert.Single(entries);
+        Assert.Equal("Speakers", entry.DeviceName);
+        Assert.Same(eq.Bands, entry.Bands);
+    }
+
+    [Fact]
+    public void Apply_OutputAndEqualizer_TwoOutputs_WritesOneEntryPerOutput()
+    {
+        var (applier, _, _, _, apo) = Create();
+        apo.IsAvailable = true;
+        var a = new OutputDeviceComponent { Name = "A", DeviceId = "a", Volume = 50 };
+        var b = new OutputDeviceComponent { Name = "B", DeviceId = "b", Volume = 50 };
+        var eq = new EqualizerComponent { Name = "Flat", Bands = new() { new() { Frequency = 1000, Gain = 0 } } };
+        var library = new ComponentLibrary();
+        library.Add(a);
+        library.Add(b);
+        library.Add(eq);
+        var profile = new AudioProfile { Name = "Both", ComponentIds = { a.Id, b.Id, eq.Id } };
+
+        applier.Apply(profile, library);
+
+        var entries = Assert.Single(apo.WriteCalls);
+        Assert.Equal(2, entries.Count);
+        Assert.Equal(new[] { "A", "B" }, entries.Select(e => e.DeviceName));
+    }
+
+    [Fact]
+    public void Apply_OutputWithoutEqualizer_DoesNotWriteApo()
+    {
+        var (applier, _, _, _, apo) = Create();
+        apo.IsAvailable = true;
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 70 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var profile = new AudioProfile { Name = "Plain", ComponentIds = { output.Id } };
+
+        applier.Apply(profile, library);
+
+        Assert.Empty(apo.WriteCalls);
+    }
+
+    [Fact]
+    public void Apply_EqualizerWithoutOutput_DoesNotWriteApo()
+    {
+        var (applier, _, _, _, apo) = Create();
+        apo.IsAvailable = true;
+        var eq = new EqualizerComponent { Name = "Stranded" };
+        var library = new ComponentLibrary();
+        library.Add(eq);
+        var profile = new AudioProfile { Name = "Eq only", ComponentIds = { eq.Id } };
+
+        applier.Apply(profile, library);
+
+        Assert.Empty(apo.WriteCalls);
+    }
+
+    /// <summary>
+    /// Sad path: profile pairs an output + EQ, but Equalizer APO isn't installed on the machine.
+    /// Who: User installed AudioSwitch but skipped (or hasn't yet completed) the APO install. They've built profiles with EQs anyway because the editor lets them.
+    /// What: WriteApoConfig is recorded as a step error explaining APO isn't installed; device switch + volume + spatial steps still apply normally. Profile is still marked active.
+    /// Why: Crashing the apply just because APO is missing would punish users for a partial install state. Per the existing graceful-failure stance, we record it as data so the status bar can prompt them to install APO without losing the rest of the profile-switch work.
+    /// Where: ProfileApplier.ApplyEqualizer's IsAvailable check inside TryStep.
+    /// How: FakeApoConfigWriter.IsAvailable defaults to false; assert that an output+EQ profile produces a WriteApoConfig error AND that the volume call still ran.
+    /// </summary>
+    [Fact]
+    public void Apply_OutputAndEqualizer_ApoNotInstalled_RecordsErrorButOtherStepsRun()
+    {
+        var (applier, _, volume, _, apo) = Create();
+        apo.IsAvailable = false;
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 70 };
+        var eq = new EqualizerComponent { Name = "Bass +" };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        library.Add(eq);
+        var profile = new AudioProfile { Name = "Cinema", ComponentIds = { output.Id, eq.Id } };
+
+        var result = applier.Apply(profile, library);
+
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("WriteApoConfig", error.Step);
+        Assert.Contains("Equalizer APO is not installed", error.Message);
+        Assert.Empty(apo.WriteCalls);
+        Assert.Equal(("spk", AudioDeviceDirection.Render, 70), Assert.Single(volume.SetVolumeCalls));
     }
 }
