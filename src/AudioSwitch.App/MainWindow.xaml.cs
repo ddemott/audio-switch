@@ -292,6 +292,88 @@ public partial class MainWindow : Window
         help.ShowDialog();
     }
 
+    // === Tools menu ===
+
+    private void ToolsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_host is null) return;
+        var menu = new ContextMenu();
+
+        var installApo = new MenuItem
+        {
+            Header = _host.ApoInstall.IsInstalled
+                ? "Equalizer APO is installed ✓"
+                : "Install Equalizer APO...",
+            IsEnabled = !_host.ApoInstall.IsInstalled && _host.ApoInstall.IsInstallerBundled,
+        };
+        if (!_host.ApoInstall.IsInstallerBundled && !_host.ApoInstall.IsInstalled)
+        {
+            installApo.Header = "Install Equalizer APO (installer missing)";
+            installApo.ToolTip = $"Bundled installer not found at {_host.ApoInstall.InstallerPath}";
+        }
+        installApo.Click += (_, _) => StartApoInstall();
+        menu.Items.Add(installApo);
+
+        menu.PlacementTarget = (UIElement)sender;
+        menu.IsOpen = true;
+    }
+
+    private void StartApoInstall()
+    {
+        if (_host is null) return;
+        var confirm = MessageBox.Show(
+            this,
+            "AudioSwitch will launch the Equalizer APO installer.\n\n" +
+            "What to expect:\n" +
+            "  • Windows will request administrator privileges (UAC).\n" +
+            "  • The installer ends with a Configurator dialog where you pick\n" +
+            "    which audio devices APO should hook into. Pick at least your\n" +
+            "    main output (usually your speakers or headphones).\n" +
+            "  • A Windows reboot is required afterward to load the audio driver.\n\n" +
+            "Continue?",
+            "Install Equalizer APO",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        var process = _host.ApoInstall.LaunchInstaller();
+        if (process is null)
+        {
+            StatusText.Text = "Bundled APO installer not found.";
+            return;
+        }
+        StatusText.Text = "Installing Equalizer APO — follow the installer prompts...";
+        process.Exited += (_, _) => Dispatcher.Invoke(OnApoInstallerExited);
+    }
+
+    private void OnApoInstallerExited()
+    {
+        if (_host is null) return;
+        if (!_host.ApoInstall.IsInstalled)
+        {
+            StatusText.Text = "Equalizer APO install canceled or did not complete.";
+            return;
+        }
+        var reboot = MessageBox.Show(
+            this,
+            "Equalizer APO installed successfully.\n\n" +
+            "Windows must reboot for the audio driver to load. Until you reboot,\n" +
+            "AudioSwitch can write APO configs but they won't affect audio.\n\n" +
+            "Reboot now?",
+            "Reboot required",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (reboot == MessageBoxResult.Yes)
+        {
+            _host.ApoInstall.RebootWindows();
+            StatusText.Text = "Rebooting in 5 seconds. Run `shutdown /a` in a terminal to abort.";
+        }
+        else
+        {
+            StatusText.Text = "Equalizer APO installed. Reboot when ready to start using EQ.";
+        }
+    }
+
     // === Theme menu ===
 
     private void ThemeButton_Click(object sender, RoutedEventArgs e)

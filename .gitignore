@@ -12,6 +12,9 @@ x86/
 *.exe
 *.pdb
 
+# Allow the bundled Equalizer APO installer (see src/AudioSwitch.App/Assets/Tools/NOTICES.md).
+!src/AudioSwitch.App/Assets/Tools/EqualizerAPO64.exe
+
 # Visual Studio / IDE
 .vs/
 .vscode/

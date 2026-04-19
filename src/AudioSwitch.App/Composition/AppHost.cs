@@ -57,6 +57,8 @@ public sealed class AppHost : IDisposable
 
     public IApoConfigWriter ApoConfigWriter { get; }
 
+    public ApoInstallHelper ApoInstall { get; } = new();
+
     public bool IsPortable { get; }
 
     public void SetThemePreference(ThemePreference preference)

@@ -130,6 +130,15 @@
                     <TextBlock Text="Help" />
                 </StackPanel>
             </Button>
+            <Button x:Name="ToolsButton" DockPanel.Dock="Right" Padding="10,4" Margin="0,0,8,0"
+                    Background="{DynamicResource BorderSubtle}" Foreground="{DynamicResource TextPrimary}"
+                    BorderThickness="0" Cursor="Hand" Click="ToolsButton_Click"
+                    ToolTip="Tools (Equalizer APO install, etc.)">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource GlyphIcon}" Text="&#xE90F;" Margin="0,0,6,0" />
+                    <TextBlock Text="Tools" />
+                </StackPanel>
+            </Button>
         </DockPanel>
 
         <Grid x:Name="RootGrid">

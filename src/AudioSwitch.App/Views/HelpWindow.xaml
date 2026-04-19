@@ -145,12 +145,17 @@
                     Atmos / DTS are written to the endpoint regardless of whether the companion app is installed; they fall back to stereo silently if the format isn't available.
                 </TextBlock>
 
-                <TextBlock Style="{StaticResource HelpH1}" Text="What's not yet wired" />
-                <StackPanel>
-                    <TextBlock Style="{StaticResource HelpBody}">• <Run FontWeight="SemiBold">Equalizer bands save but don't affect audio yet</Run> — driver-level wiring via Equalizer APO is on the roadmap.</TextBlock>
-                </StackPanel>
-                <TextBlock Style="{StaticResource HelpMuted}">
-                    Everything else — device switching, volumes (per-profile), spatial audio, hotkeys, tray behavior, theming, profile CRUD — is live.
+                <TextBlock Style="{StaticResource HelpH1}" Text="Equalizer (Equalizer APO)" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    AudioSwitch can drive Equalizer APO — a free GPL audio processing object that loads at the driver layer. Once APO is installed, equalizer profiles are audible and you get live preview while you tune.
+                </TextBlock>
+                <TextBlock Style="{StaticResource HelpH2}" Text="One-click install" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Click <Run FontWeight="SemiBold">Tools → Install Equalizer APO...</Run> in the main window's title bar. The bundled installer launches with admin elevation, ends with a Configurator dialog where you pick which devices APO hooks into (pick at least your main output), and a reboot is required to load the audio driver.
+                </TextBlock>
+                <TextBlock Style="{StaticResource HelpH2}" Text="Live preview" />
+                <TextBlock Style="{StaticResource HelpBody}">
+                    Once APO is installed, opening the EQ editor (double-click an equalizer row) gives you live preview against your current default output: drag a band slider and the change is audible immediately. Cancel restores the previous EQ; Save persists the bands.
                 </TextBlock>
 
                 <TextBlock Style="{StaticResource HelpH1}" Text="Troubleshooting" />

@@ -23,4 +23,9 @@
     <Resource Include="Assets\audio-switch.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Assets\Tools\EqualizerAPO64.exe" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Tools\NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

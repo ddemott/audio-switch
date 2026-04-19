@@ -53,7 +53,7 @@ Left-click the tray icon to open the main window.
 
 **Theme** — click the Theme button (top right of the main window). System / Light / Dark.
 
-**Equalizer** — click **+ Add equalizer** to add a flat preset or pick from the curated catalog (Music / Video conferencing / Gaming). Double-click an equalizer to edit its 10 bands. *(Note: EQ values are stored but not yet applied to audio — see roadmap.)*
+**Equalizer** — click **+ Add equalizer** to add a flat preset or pick from the curated catalog (Music / Video conferencing / Gaming). Double-click an equalizer to edit its 10 bands. To make EQ actually affect audio, click **Tools → Install Equalizer APO...** in the title bar — that bundles APO from this app, runs its installer (admin + reboot), and then EQ bands apply on every profile switch and live-preview as you tune.
 
 **Hotkeys** — auto-assigned `Ctrl+Shift+{1..9}` when you save a link config. Global; work even when the app is minimized or another window is focused.
 
@@ -63,7 +63,8 @@ Left-click the tray icon to open the main window.
 - **TDD for the domain.** `AudioSwitch.Core` has 99 unit tests. COM and WPF are smoke-tested.
 
 ## Roadmap
-- Equalizer APO wiring (currently EQ bands persist but don't affect audio).
+- Custom EQ band frequencies / parametric filters (Q control) — currently 10 fixed graphic-EQ bands.
+- Auto-EQ-style per-headphone correction profiles (depends on parametric).
 
 ## Documentation
 - [`CORE_PRINCIPLE.md`](CORE_PRINCIPLE.md) — the why.

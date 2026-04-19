@@ -41,7 +41,10 @@ Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig
 - **`Views/EqualizerEditorWindow.xaml`** — 10-band modal.
 - **`Views/NameEditorWindow.xaml`** — generic name prompt (rename / save-as).
 - **`Views/HelpWindow.xaml`** — in-app documentation modal (opened via Help button or F1).
-- **`Views/ProfileVolumesWindow.xaml`** — per-profile volume editor; one slider per Output/Input in the profile, writes overrides into `AudioProfile.ComponentVolumes`.
+- **`Views/ProfileVolumesWindow.xaml`** — per-profile volume editor; one slider per Output/Input in the profile, writes overrides into `AudioProfile.ComponentVolumes`. Live preview via `IVolumeController` on slider drag, snapshot/restore on cancel.
+- **`Services/ApoConfigWriter.cs`** — implements `IApoConfigWriter`; writes `audioswitch.txt` to APO's config dir + idempotent `Include:` line in `config.txt`. Snapshot/Restore powers cancellable live preview in the EQ editor.
+- **`Services/ApoInstallHelper.cs`** — locates `Assets/Tools/EqualizerAPO64.exe`, launches it (UAC auto-elevates), exposes `RebootWindows()` for the post-install reboot prompt.
+- **`Assets/Tools/EqualizerAPO64.exe`** — bundled APO installer (GPLv2, see `NOTICES.md` in same dir for source URL + SHA-256).
 - **`Views/CloseChoiceWindow.xaml`** — Minimize / Close / Cancel + "Don't ask again".
 - **`Themes/Dark.xaml` + `Light.xaml`** — resource dictionaries.
 - **`Assets/audio-switch.ico`** — multi-resolution tray / taskbar icon.
@@ -122,4 +125,4 @@ Errors are data, not exceptions. The profile is still marked active and persiste
 | `Microsoft.Win32.Registry` (via `WindowsBase`) | HKCU Run-key access |
 
 ## Untouched V2 surface
-- **Equalizer APO wiring.** `EqualizerComponent.Bands` values persist through the library but aren't yet swapped into a live APO config. Zero-latency principle still applies — config-file swap, not DSP.
+- (none — EQ APO and spatial audio both wired as of mid-April 2026.)

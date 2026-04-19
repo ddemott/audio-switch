@@ -24,7 +24,7 @@ Mix and match. An equalizer can belong to many profiles without being duplicated
 - ✅ Output/input default-device switching + per-profile volume override
 - ✅ Profile CRUD, hotkeys, tray, theming, startup registration, minimize-to-tray, portable mode
 - ✅ Spatial audio — `IPropertyStore` write to `PKEY_AudioEndpoint_Spatial_Audio_Format` (Stereo / Windows Sonic / Dolby Atmos / DTS Headphone:X)
-- ⏳ Equalizer — bands persist; APO wiring still to do
+- ✅ Equalizer — `ApoConfigWriter` writes per-device `GraphicEQ:` blocks via Equalizer APO (bundled installer in Tools menu); live preview while editing
 
 ## Target Users
 People who frequently switch audio contexts — Teams calls, competitive gaming (CoD, Arc Raiders), casual listening — and are tired of manually reconfiguring devices and settings each time.

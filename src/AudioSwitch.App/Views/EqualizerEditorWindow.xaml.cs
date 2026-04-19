@@ -71,7 +71,7 @@ public partial class EqualizerEditorWindow : Window
         }
         if (!_apoConfigWriter.IsAvailable)
         {
-            PreviewBanner.Text = "Live preview disabled — Equalizer APO is not installed. Bands still save normally.";
+            PreviewBanner.Text = "Live preview disabled — Equalizer APO is not installed. Install it via the Tools menu in the main window. Bands still save normally.";
             PreviewBanner.Visibility = Visibility.Visible;
             return;
         }
