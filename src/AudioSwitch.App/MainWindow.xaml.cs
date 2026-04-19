@@ -265,7 +265,7 @@ public partial class MainWindow : Window
             StatusText.Text = $"Profile '{profile.Name}' has no Output or Input device to adjust.";
             return;
         }
-        var dialog = new ProfileVolumesWindow(profile, components) { Owner = this };
+        var dialog = new ProfileVolumesWindow(profile, components, _host.VolumeController) { Owner = this };
         if (dialog.ShowDialog() == true && dialog.Saved)
         {
             try
