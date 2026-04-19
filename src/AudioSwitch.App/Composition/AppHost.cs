@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using AudioSwitch.App.Services;
 using AudioSwitch.Audio;
@@ -13,10 +14,14 @@ public sealed class AppHost : IDisposable
 
     public AppHost(IHotkeyService hotkeyService, ThemeService themeService, Application application)
     {
+        var baseDir = Path.GetDirectoryName(Environment.ProcessPath);
+        IsPortable = PortableMode.IsActive(baseDir);
+
         var deviceService = new CoreAudioController();
         var volumeController = new VolumeController();
         var spatialController = new SpatialAudioController();
-        ProfileStore = new ProfileStore();
+        var profilePath = Core.Services.ProfileStore.DefaultFilePath(baseDir);
+        ProfileStore = new ProfileStore(profilePath);
         ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController);
         DeviceService = deviceService;
         VolumeController = volumeController;
@@ -49,6 +54,8 @@ public sealed class AppHost : IDisposable
 
     public StartupRegistrationService StartupRegistration { get; }
 
+    public bool IsPortable { get; }
+
     public void SetThemePreference(ThemePreference preference)
     {
         ThemeService.Apply(preference);
@@ -58,10 +65,12 @@ public sealed class AppHost : IDisposable
     public void SetCloseBehavior(WindowCloseBehavior behavior) =>
         ProfileManager.PersistSetting(d => d.CloseBehavior = behavior);
 
-    public bool IsStartWithWindowsEnabled => StartupRegistration.IsRegistered();
+    public bool IsStartWithWindowsEnabled => !IsPortable && StartupRegistration.IsRegistered();
 
     public void SetStartWithWindows(bool enabled)
     {
+        if (IsPortable) return;
+
         if (enabled)
         {
             var path = Environment.ProcessPath;

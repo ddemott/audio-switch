@@ -37,10 +37,16 @@ public sealed class TrayIconHost : IDisposable
 
         _startWithWindowsItem = new MenuItem
         {
-            Header = "Start with Windows",
-            IsCheckable = true,
+            Header = _host.IsPortable
+                ? "Start with Windows (disabled — portable)"
+                : "Start with Windows",
+            IsCheckable = !_host.IsPortable,
             IsChecked = _host.IsStartWithWindowsEnabled,
+            IsEnabled = !_host.IsPortable,
             StaysOpenOnClick = false,
+            ToolTip = _host.IsPortable
+                ? "Portable builds never write to the registry."
+                : null,
         };
         _startWithWindowsItem.Click += OnToggleStartWithWindows;
 

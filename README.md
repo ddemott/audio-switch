@@ -19,6 +19,24 @@ dotnet run --project src/AudioSwitch.App
 
 Profiles are stored at `%APPDATA%\AudioSwitch\profiles.json`.
 
+## Portable install
+
+A portable build is a single folder that runs without touching the registry or `%APPDATA%` — drop it on a USB stick, move it between machines, delete the folder when you're done.
+
+Build one from source:
+
+```
+pwsh ./scripts/build-portable.ps1
+```
+
+That produces `build/portable/` (ready to run — `AudioSwitch.App.exe` inside) and `build/AudioSwitch-Portable.zip`. The folder contains a zero-byte `portable.flag` marker that activates portable behavior:
+
+- `profiles.json` lives next to the exe instead of `%APPDATA%`.
+- **Start with Windows** is disabled in the tray menu (portable builds never write HKCU Run entries).
+- The main window title reads **AudioSwitch (Portable)** so you can tell at a glance.
+
+To make a non-portable copy portable, just create an empty `portable.flag` file beside the exe. To go back, delete it.
+
 ## Using it
 
 **Main window** — four columns: Outputs, Inputs, Equalizers, Link configs (profiles). Select one item per column and hit **+ Save current links as config** to make a profile. Bezier curves show the links between selections.

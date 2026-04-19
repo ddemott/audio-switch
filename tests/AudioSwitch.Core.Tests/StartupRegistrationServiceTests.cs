@@ -66,7 +66,9 @@ public sealed class StartupRegistrationServiceTests
         service.Register(@"C:\old\AudioSwitch.exe");
         service.Register(@"C:\new\AudioSwitch.exe");
 
-        Assert.Equal(@"C:\new\AudioSwitch.exe", store.GetValue(StartupRegistrationService.DefaultValueName));
+        Assert.Equal(
+            "\"C:\\new\\AudioSwitch.exe\" --startup",
+            store.GetValue(StartupRegistrationService.DefaultValueName));
     }
 
     [Fact]

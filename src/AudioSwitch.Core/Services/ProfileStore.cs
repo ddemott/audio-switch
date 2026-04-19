@@ -32,6 +32,15 @@ public sealed class ProfileStore : IProfileStore
         return Path.Combine(appData, "AudioSwitch", "profiles.json");
     }
 
+    public static string DefaultFilePath(string? baseDir)
+    {
+        if (PortableMode.IsActive(baseDir))
+        {
+            return Path.Combine(baseDir!, "profiles.json");
+        }
+        return DefaultFilePath();
+    }
+
     public ProfileStoreData Load()
     {
         if (!File.Exists(_filePath))

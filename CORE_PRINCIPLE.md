@@ -3,6 +3,9 @@
 ## Zero Latency
 Gameplay is more important than perfect sound. Never introduce latency in the audio pipeline. All audio processing (EQ, spatial) must happen at the driver layer (e.g., Equalizer APO config swapping), not through real-time application-level DSP.
 
+## Portability
+The app must be runnable without an installer. Drop-in a folder with `portable.flag` beside the exe and the app stores its state locally (`profiles.json` next to the exe) and stays off the registry (no HKCU Run entry). Machines where the user can't run installers — locked-down work boxes, shared rigs, test VMs — should still be first-class. Portable mode is a single marker file, not a separate build mode; the same binary adapts.
+
 ## UX Model
 - **System tray icon** — primary interface; right-click menu with "Apply profile" submenu, "Show AudioSwitch", "Start with Windows", and "Exit". Tooltip shows the active profile.
 - **Main window** — four-column node-link layout (Outputs / Inputs / Equalizers / Link configs) with Bezier connectors. Opened from tray left-click / double-click or the hotkey-triggered apply path.

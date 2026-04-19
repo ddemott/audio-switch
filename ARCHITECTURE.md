@@ -4,7 +4,7 @@
 - **Language:** C# 12 / .NET 8 (`net8.0-windows`)
 - **UI:** WPF
 - **Audio API:** Windows Core Audio (MMDevice / PolicyConfig COM) via `AudioSwitch.Audio`
-- **Storage:** JSON (`System.Text.Json`) at `%APPDATA%/AudioSwitch/profiles.json`
+- **Storage:** JSON (`System.Text.Json`) at `%APPDATA%/AudioSwitch/profiles.json`, or next to the exe when `portable.flag` is present
 - **Tray:** `Hardcodet.NotifyIcon.Wpf`
 - **Hotkeys:** `RegisterHotKey` / `WM_HOTKEY` via P/Invoke
 - **Startup:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
@@ -23,7 +23,7 @@ tests/
 
 ### AudioSwitch.Core — domain
 - **Models:** `Component` (abstract) + `OutputDeviceComponent`, `InputDeviceComponent`, `EqualizerComponent`, `SpatialAudioComponent`; `AudioProfile` (references components by id); `ComponentLibrary`; `ProfileStoreData`; enums `ThemePreference`, `WindowCloseBehavior`, `CloseAction`, `SpatialAudioMode`.
-- **Services:** `ProfileStore` (JSON load/save + quarantine on corruption), `ProfileManager` (CRUD + `ApplyProfile`), `ProfileApplier` (per-step `TryStep` orchestration), `HotkeyParser`, `HotkeyRegistrar`, `EqualizerPresets`, `CloseBehaviorResolver`, `StartupRegistrationService` (owns `--startup` arg + `IsStartupLaunch`).
+- **Services:** `ProfileStore` (JSON load/save + quarantine on corruption; `DefaultFilePath(baseDir)` branches between APPDATA and the exe directory), `ProfileManager` (CRUD + `ApplyProfile`), `ProfileApplier` (per-step `TryStep` orchestration), `HotkeyParser`, `HotkeyRegistrar`, `EqualizerPresets`, `CloseBehaviorResolver`, `StartupRegistrationService` (owns `--startup` arg + `IsStartupLaunch`), `PortableMode` (probes for `portable.flag` beside the exe).
 - **Interfaces:** `IProfileStore`, `IProfileManager`, `IAudioDeviceService`, `IVolumeController`, `ISpatialAudioController`, `IHotkeyService`, `IRegistryStore`.
 
 ### AudioSwitch.Audio — platform
@@ -31,7 +31,7 @@ Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig
 
 ### AudioSwitch.App — shell
 - **`App.xaml.cs`** — composition root. Reads command-line args (`--startup` suppresses window), builds `ThemeService`, `MainWindow`, `HotkeyService`, `AppHost`, `TrayIconHost`.
-- **`Composition/AppHost.cs`** — holds all services, exposes settings helpers (`SetThemePreference`, `SetCloseBehavior`, `SetStartWithWindows`), reconciles hardware on launch.
+- **`Composition/AppHost.cs`** — holds all services, exposes settings helpers (`SetThemePreference`, `SetCloseBehavior`, `SetStartWithWindows`), reconciles hardware on launch. Exposes `IsPortable` (read once from `PortableMode.IsActive(exeDir)`); when portable, `SetStartWithWindows` is a no-op and `IsStartWithWindowsEnabled` returns false.
 - **`Services/ThemeService.cs`** — System / Light / Dark resource-dictionary swap.
 - **`Services/HotkeyService.cs`** — `WM_HOTKEY` hook via `HwndSource`.
 - **`Services/TrayIconHost.cs`** — `TaskbarIcon` owner. Tooltip bound to active profile. Context menu: Show, Apply profile submenu, Start with Windows (checkable), Exit. Also handles the close-prompt flow when `MainWindow.Closing` fires.

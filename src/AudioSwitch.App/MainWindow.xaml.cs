@@ -29,6 +29,10 @@ public partial class MainWindow : Window
     public void Bind(AppHost host)
     {
         _host = host;
+        if (host.IsPortable)
+        {
+            Title = "AudioSwitch (Portable)";
+        }
         RefreshAll();
         UpdateThemeLabel();
         _host.ProfileManager.LibraryChanged += (_, _) => Dispatcher.Invoke(() => { RefreshLibrary(); QueueRedraw(); });

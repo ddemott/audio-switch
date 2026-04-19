@@ -202,6 +202,61 @@ public sealed class ProfileStoreTests : IDisposable
         Assert.NotEmpty(GetCorruptBackups());
     }
 
+    // === DefaultFilePath(baseDir) — portable-mode branch ===
+
+    [Fact]
+    public void DefaultFilePath_BaseDirWithPortableMarker_ReturnsBaseDirProfilesJson()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), $"audioswitch-portable-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(baseDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(baseDir, PortableMode.MarkerFileName), string.Empty);
+
+            var path = ProfileStore.DefaultFilePath(baseDir);
+
+            Assert.Equal(Path.Combine(baseDir, "profiles.json"), path);
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DefaultFilePath_BaseDirWithoutPortableMarker_ReturnsAppDataPath()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), $"audioswitch-nonportable-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(baseDir);
+        try
+        {
+            var path = ProfileStore.DefaultFilePath(baseDir);
+
+            Assert.Equal(ProfileStore.DefaultFilePath(), path);
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Sad path: baseDir is null/empty (rare — Environment.ProcessPath is permitted to be null by the BCL docs).
+    /// Who: AppHost construction when the process path cannot be determined.
+    /// What: DefaultFilePath(null) falls back to the APPDATA path rather than crashing in Path.Combine.
+    /// Why: Silent fallback to the install-wide profiles file is safer than crashing app launch; the user simply loses portable behavior.
+    /// Where: ProfileStore.DefaultFilePath(baseDir) delegating to PortableMode.IsActive's null guard.
+    /// How: Pass null / empty / whitespace; assert the returned path equals the APPDATA-based default.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void DefaultFilePath_NullOrWhitespaceBaseDir_ReturnsAppDataPath(string? baseDir)
+    {
+        Assert.Equal(ProfileStore.DefaultFilePath(), ProfileStore.DefaultFilePath(baseDir));
+    }
+
     private string[] GetCorruptBackups()
     {
         var dir = Path.GetDirectoryName(_tempFile)!;
