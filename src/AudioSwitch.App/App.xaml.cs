@@ -14,12 +14,14 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        var themeService = new ThemeService(this);
+
         _mainWindow = new MainWindow();
         _mainWindow.Show();
 
         var source = (HwndSource)PresentationSource.FromVisual(_mainWindow)!;
         var hotkeyService = new HotkeyService(source);
-        _host = new AppHost(hotkeyService);
+        _host = new AppHost(hotkeyService, themeService, this);
 
         _mainWindow.Bind(_host);
     }

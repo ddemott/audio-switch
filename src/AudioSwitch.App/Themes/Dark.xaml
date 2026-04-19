@@ -1,0 +1,27 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Surface / chrome -->
+    <SolidColorBrush x:Key="SurfaceDefault" Color="#0D0F14" />
+    <SolidColorBrush x:Key="SurfaceElevated" Color="#111827" />
+    <SolidColorBrush x:Key="SurfaceHover" Color="#1E293B" />
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="TextPrimary" Color="#E5E7EB" />
+    <SolidColorBrush x:Key="TextMuted" Color="#9CA3AF" />
+    <SolidColorBrush x:Key="TextOnAccent" Color="#0B1020" />
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="Border" Color="#374151" />
+    <SolidColorBrush x:Key="BorderSubtle" Color="#1F2937" />
+
+    <!-- Per-column accents -->
+    <SolidColorBrush x:Key="AccentOutput" Color="#34D399" />
+    <SolidColorBrush x:Key="AccentInput" Color="#A78BFA" />
+    <SolidColorBrush x:Key="AccentEq" Color="#60A5FA" />
+    <SolidColorBrush x:Key="AccentProfile" Color="#F59E0B" />
+
+    <sys:Double x:Key="BezierThickness">2</sys:Double>
+
+</ResourceDictionary>

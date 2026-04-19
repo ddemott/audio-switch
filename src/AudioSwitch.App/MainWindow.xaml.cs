@@ -27,9 +27,11 @@ public partial class MainWindow : Window
     {
         _host = host;
         RefreshAll();
+        UpdateThemeLabel();
         _host.ProfileManager.LibraryChanged += (_, _) => Dispatcher.Invoke(() => { RefreshLibrary(); QueueRedraw(); });
         _host.ProfileManager.ProfilesChanged += (_, _) => Dispatcher.Invoke(RefreshProfiles);
         _host.ProfileManager.ProfileApplied += (_, r) => Dispatcher.Invoke(() => ShowApplyResult(r));
+        _host.ThemeService.AppliedThemeChanged += (_, _) => Dispatcher.Invoke(() => { UpdateThemeLabel(); QueueRedraw(); });
     }
 
     // === Add menus ===
@@ -193,6 +195,42 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    // === Theme menu ===
+
+    private void ThemeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_host is null) return;
+        var menu = new ContextMenu();
+        foreach (ThemePreference pref in Enum.GetValues<ThemePreference>())
+        {
+            var captured = pref;
+            var item = new MenuItem
+            {
+                Header = PrefDisplayName(captured),
+                IsChecked = _host.ThemeService.Preference == captured,
+                IsCheckable = true,
+                StaysOpenOnClick = false,
+            };
+            item.Click += (_, _) => _host.SetThemePreference(captured);
+            menu.Items.Add(item);
+        }
+        menu.PlacementTarget = (UIElement)sender;
+        menu.IsOpen = true;
+    }
+
+    private void UpdateThemeLabel()
+    {
+        if (_host is null) return;
+        ThemeButtonLabel.Text = PrefDisplayName(_host.ThemeService.Preference);
+    }
+
+    private static string PrefDisplayName(ThemePreference pref) => pref switch
+    {
+        ThemePreference.Light => "Light",
+        ThemePreference.Dark => "Dark",
+        _ => "System",
+    };
+
     private void PromptRenameProfile(AudioProfile profile)
     {
         if (_host is null) return;
@@ -251,7 +289,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        var name = BuildProfileName();
+        var suggested = BuildProfileName();
+        var dialog = new NameEditorWindow("Save link config", "Name this link config", suggested) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        var name = string.IsNullOrWhiteSpace(dialog.EnteredName) ? suggested : dialog.EnteredName;
+
         var slot = NextAvailableSlot();
         var profile = new AudioProfile
         {
@@ -346,26 +388,38 @@ public partial class MainWindow : Window
         if (_host is null) return;
         LinkCanvas.Children.Clear();
 
+        var outBrush = FindBrush("AccentOutput");
+        var inBrush = FindBrush("AccentInput");
+        var thickness = FindDouble("BezierThickness", fallback: 2.0);
+
         DrawBetween(
             AnchorPoint(OutputsListBox, OutputsListBox.SelectedItem, rightEdge: true),
             AnchorPoint(InputsListBox, InputsListBox.SelectedItem, rightEdge: false),
-            "#34D399");
+            outBrush, thickness);
         DrawBetween(
             AnchorPoint(InputsListBox, InputsListBox.SelectedItem, rightEdge: true),
             AnchorPoint(EqualizersListBox, EqualizersListBox.SelectedItem, rightEdge: false),
-            "#A78BFA");
+            inBrush, thickness);
     }
 
-    private void DrawBetween(Point? start, Point? end, string colorHex)
+    private Brush FindBrush(string key)
+    {
+        return TryFindResource(key) as Brush ?? Brushes.Gray;
+    }
+
+    private double FindDouble(string key, double fallback)
+    {
+        return TryFindResource(key) is double d ? d : fallback;
+    }
+
+    private void DrawBetween(Point? start, Point? end, Brush stroke, double thickness)
     {
         if (start is null || end is null) return;
 
-        var color = (Color)ColorConverter.ConvertFromString(colorHex);
-
         var path = new Path
         {
-            Stroke = new SolidColorBrush(color),
-            StrokeThickness = 2,
+            Stroke = stroke,
+            StrokeThickness = thickness,
             SnapsToDevicePixels = true,
             Data = BuildBezier(start.Value, end.Value),
             IsHitTestVisible = false,

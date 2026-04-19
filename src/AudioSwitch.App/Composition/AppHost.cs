@@ -1,3 +1,4 @@
+using System.Windows;
 using AudioSwitch.App.Services;
 using AudioSwitch.Audio;
 using AudioSwitch.Core.Interfaces;
@@ -8,21 +9,55 @@ namespace AudioSwitch.App.Composition;
 
 public sealed class AppHost : IDisposable
 {
-    public AppHost(IHotkeyService hotkeyService)
+    private readonly ProfileStoreData _storeDataAtInit;
+
+    public AppHost(IHotkeyService hotkeyService, ThemeService themeService, Application application)
     {
         var deviceService = new CoreAudioController();
         var volumeController = new VolumeController();
         var spatialController = new SpatialAudioController();
         ProfileStore = new ProfileStore();
+        _storeDataAtInit = ProfileStore.Load();
         ProfileManager = new ProfileManager(ProfileStore, deviceService, volumeController, spatialController);
         DeviceService = deviceService;
         VolumeController = volumeController;
         SpatialController = spatialController;
         HotkeyService = hotkeyService;
+        ThemeService = themeService;
+
+        ThemeService.Apply(_storeDataAtInit.ThemePreference);
 
         SyncHardwareToLibrary();
         RegisterAllHotkeys();
         ProfileManager.ProfilesChanged += (_, _) => RegisterAllHotkeys();
+    }
+
+    public IProfileStore ProfileStore { get; }
+
+    public IProfileManager ProfileManager { get; }
+
+    public IAudioDeviceService DeviceService { get; }
+
+    public IVolumeController VolumeController { get; }
+
+    public ISpatialAudioController SpatialController { get; }
+
+    public IHotkeyService HotkeyService { get; }
+
+    public ThemeService ThemeService { get; }
+
+    public void SetThemePreference(ThemePreference preference)
+    {
+        ThemeService.Apply(preference);
+        var data = ProfileStore.Load();
+        data.ThemePreference = preference;
+        ProfileStore.Save(data);
+    }
+
+    public void Dispose()
+    {
+        HotkeyService.Dispose();
+        ThemeService.Dispose();
     }
 
     private void SyncHardwareToLibrary()
@@ -50,23 +85,6 @@ public sealed class AppHost : IDisposable
                 Volume = 80,
             });
         }
-    }
-
-    public IProfileStore ProfileStore { get; }
-
-    public IProfileManager ProfileManager { get; }
-
-    public IAudioDeviceService DeviceService { get; }
-
-    public IVolumeController VolumeController { get; }
-
-    public ISpatialAudioController SpatialController { get; }
-
-    public IHotkeyService HotkeyService { get; }
-
-    public void Dispose()
-    {
-        HotkeyService.Dispose();
     }
 
     private void RegisterAllHotkeys()

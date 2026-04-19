@@ -9,4 +9,6 @@ public sealed class ProfileStoreData
     public List<AudioProfile> Profiles { get; set; } = new();
 
     public string? ActiveProfile { get; set; }
+
+    public ThemePreference ThemePreference { get; set; } = ThemePreference.System;
 }
