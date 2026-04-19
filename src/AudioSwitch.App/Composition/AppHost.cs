@@ -9,6 +9,8 @@ namespace AudioSwitch.App.Composition;
 
 public sealed class AppHost : IDisposable
 {
+    private readonly HotkeyRegistrar _hotkeyRegistrar;
+
     public AppHost(IHotkeyService hotkeyService, ThemeService themeService, Application application)
     {
         var deviceService = new CoreAudioController();
@@ -22,12 +24,13 @@ public sealed class AppHost : IDisposable
         HotkeyService = hotkeyService;
         ThemeService = themeService;
         StartupRegistration = new StartupRegistrationService(new WindowsRegistryStore());
+        _hotkeyRegistrar = new HotkeyRegistrar(hotkeyService);
 
         ThemeService.Apply(ProfileManager.ThemePreference);
 
         SyncHardwareToLibrary();
-        RegisterAllHotkeys();
-        ProfileManager.ProfilesChanged += (_, _) => RegisterAllHotkeys();
+        ReRegisterHotkeys();
+        ProfileManager.ProfilesChanged += (_, _) => ReRegisterHotkeys();
     }
 
     public IProfileStore ProfileStore { get; }
@@ -63,7 +66,7 @@ public sealed class AppHost : IDisposable
         {
             var path = Environment.ProcessPath;
             if (string.IsNullOrWhiteSpace(path)) return;
-            StartupRegistration.Register($"\"{path}\" {App.StartupArg}");
+            StartupRegistration.Register(path);
         }
         else
         {
@@ -104,21 +107,6 @@ public sealed class AppHost : IDisposable
         }
     }
 
-    private void RegisterAllHotkeys()
-    {
-        HotkeyService.UnregisterAll();
-        foreach (var profile in ProfileManager.Profiles)
-        {
-            if (string.IsNullOrWhiteSpace(profile.Hotkey))
-            {
-                continue;
-            }
-            var name = profile.Name;
-            HotkeyService.Register(name, profile.Hotkey, () =>
-            {
-                try { ProfileManager.ApplyProfile(name); }
-                catch { /* graceful: missing profile race after delete is benign */ }
-            });
-        }
-    }
+    private void ReRegisterHotkeys() =>
+        _hotkeyRegistrar.RegisterAll(ProfileManager.Profiles, ProfileManager.ApplyProfile);
 }

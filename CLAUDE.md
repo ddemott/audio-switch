@@ -28,7 +28,7 @@ tests/
 ## Non-obvious invariants
 
 - **`ShutdownMode = OnExplicitShutdown`.** Closing the main window does NOT quit. Only `Application.Shutdown()` from `TrayIconHost.ExitApplication()` does. `MainWindow.Closing` is intercepted; it delegates to `TrayIconHost.RequestClose`, which consults `ProfileManager.CloseBehavior` (Prompt / Minimize / Exit).
-- **`--startup` CLI arg.** When the user enables "Start with Windows", the registered command line is `"{ProcessPath}" --startup`. On launch, `App.OnStartup` detects this and hides `MainWindow` so auto-start is silent.
+- **`--startup` CLI arg.** Single-sourced in `StartupRegistrationService.StartupArg`. When the user enables "Start with Windows", `Register(processPath)` writes the command line `"{ProcessPath}" --startup` to HKCU Run. `App.OnStartup` calls `StartupRegistrationService.IsStartupLaunch(e.Args)` to detect this and hides `MainWindow` so auto-start is silent.
 - **Settings are not a separate file.** `ThemePreference`, `CloseBehavior`, and future prefs all live on `ProfileStoreData` alongside profiles. Route all writes through `ProfileManager.PersistSetting` — do NOT call `ProfileStore.Load/Save` directly from `AppHost`, or you will clobber `ProfileManager`'s in-memory copy (this bug existed before; it has been fixed — don't re-introduce it).
 - **Hotkey registration races.** When a profile is deleted, its `WM_HOTKEY` callback may still fire once. The callback swallows missing-profile errors intentionally; keep that pattern.
 - **Tooltip 63-char limit.** `TrayIconHost.BuildTooltip` clips to 63 chars because Windows' `NOTIFYICONDATA.szTip` is a fixed 64-char buffer. Don't remove the clip.

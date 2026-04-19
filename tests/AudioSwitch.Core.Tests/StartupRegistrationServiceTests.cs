@@ -16,7 +16,7 @@ public sealed class StartupRegistrationServiceTests
     }
 
     [Fact]
-    public void Register_WritesValueUnderDefaultName()
+    public void Register_WritesQuotedPathWithStartupArg()
     {
         var store = new InMemoryRegistryStore();
         var service = new StartupRegistrationService(store);
@@ -24,19 +24,37 @@ public sealed class StartupRegistrationServiceTests
         service.Register(@"C:\app\AudioSwitch.exe");
 
         Assert.True(service.IsRegistered());
-        Assert.Equal(@"C:\app\AudioSwitch.exe", store.GetValue(StartupRegistrationService.DefaultValueName));
+        Assert.Equal(
+            "\"C:\\app\\AudioSwitch.exe\" --startup",
+            store.GetValue(StartupRegistrationService.DefaultValueName));
     }
 
     [Fact]
-    public void Register_PreservesFullCommandLineVerbatim()
+    public void Register_PathWithSpaces_IsQuotedAndKeepsStartupArg()
     {
         var store = new InMemoryRegistryStore();
         var service = new StartupRegistrationService(store);
-        const string commandLine = "\"C:\\Program Files\\AudioSwitch\\AudioSwitch.exe\" --startup";
 
-        service.Register(commandLine);
+        service.Register(@"C:\Program Files\AudioSwitch\AudioSwitch.exe");
 
-        Assert.Equal(commandLine, store.GetValue(StartupRegistrationService.DefaultValueName));
+        Assert.Equal(
+            "\"C:\\Program Files\\AudioSwitch\\AudioSwitch.exe\" --startup",
+            store.GetValue(StartupRegistrationService.DefaultValueName));
+    }
+
+    [Fact]
+    public void IsStartupLaunch_ArgsContainFlag_ReturnsTrue()
+    {
+        Assert.True(StartupRegistrationService.IsStartupLaunch(new[] { "--startup" }));
+        Assert.True(StartupRegistrationService.IsStartupLaunch(new[] { "other", "--startup", "more" }));
+        Assert.True(StartupRegistrationService.IsStartupLaunch(new[] { "--STARTUP" }));
+    }
+
+    [Fact]
+    public void IsStartupLaunch_NoFlag_ReturnsFalse()
+    {
+        Assert.False(StartupRegistrationService.IsStartupLaunch(Array.Empty<string>()));
+        Assert.False(StartupRegistrationService.IsStartupLaunch(new[] { "--other" }));
     }
 
     [Fact]

@@ -1,15 +1,13 @@
-using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
 using AudioSwitch.App.Composition;
 using AudioSwitch.App.Services;
+using AudioSwitch.Core.Services;
 
 namespace AudioSwitch.App;
 
 public partial class App : Application
 {
-    public const string StartupArg = "--startup";
-
     private AppHost? _host;
     private MainWindow? _mainWindow;
     private TrayIconHost? _tray;
@@ -18,8 +16,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var launchedByStartup = e.Args.Any(a =>
-            string.Equals(a, StartupArg, StringComparison.OrdinalIgnoreCase));
+        var launchedByStartup = StartupRegistrationService.IsStartupLaunch(e.Args);
 
         var themeService = new ThemeService(this);
 

@@ -50,11 +50,14 @@ EQ bands are stored in `profiles.json` but do not affect audio. The zero-latency
 
 ## Refactors / polish
 
-- **HotkeyRegistrar extraction.** `AppHost.RegisterAllHotkeys` mixes iteration, error swallowing, and service interaction. Extract a `HotkeyRegistrar` service in Core that takes the profile list and the `IHotkeyService`; add unit tests.
-- **Attached property for row-select borders.** `MainWindow.xaml` binds `ListBoxItem` border brush to `{Binding RelativeSource={RelativeSource AncestorType=ListBox}, Path=Tag}`. Works but is a slight XAML smell — formalize as an attached `SelectedBorderBrush` property.
-- **`AudioSwitch.Audio.Tests` is empty.** If any logic moves out of `AppHost` (e.g. HotkeyRegistrar above), add tests there or reuse `Core.Tests`.
-- **Single-source the `--startup` arg constant.** Currently `App.StartupArg = "--startup"` lives in App and is formatted into the registry entry in `AppHost.SetStartWithWindows`. Move to `Core` so `StartupRegistrationService` can own the full contract.
-- **Settings extraction.** `ProfileStoreData` now mixes profiles + library + `ThemePreference` + `CloseBehavior`. If a third/fourth setting lands, split into `AppSettings` vs `ProfileData` so the concerns decouple and the schema-version guard has finer granularity.
+Done (shipped):
+- ~~**HotkeyRegistrar extraction** — `Core/Services/HotkeyRegistrar.cs` with 6 tests + `FakeHotkeyService`.~~
+- ~~**Attached property for row-select borders** — `App/Controls/ListBoxAssist.SelectedBorderBrush`; `MainWindow.xaml` no longer overloads `Tag`.~~
+- ~~**Single-source `--startup`** — `StartupRegistrationService.StartupArg` + `IsStartupLaunch(args)`; `Register` takes a raw path and formats the command line internally.~~
+
+Still open:
+- **`AudioSwitch.Audio.Tests` is empty.** Nothing concrete to test yet; re-evaluate when non-COM logic lands in that project.
+- **Settings extraction.** `ProfileStoreData` mixes profiles + library + `ThemePreference` + `CloseBehavior`. Deferred as YAGNI until a third/fourth setting lands — at that point split into `AppSettings` vs `ProfileData`.
 
 ---
 

@@ -23,7 +23,7 @@ tests/
 
 ### AudioSwitch.Core — domain
 - **Models:** `Component` (abstract) + `OutputDeviceComponent`, `InputDeviceComponent`, `EqualizerComponent`, `SpatialAudioComponent`; `AudioProfile` (references components by id); `ComponentLibrary`; `ProfileStoreData`; enums `ThemePreference`, `WindowCloseBehavior`, `CloseAction`, `SpatialAudioMode`.
-- **Services:** `ProfileStore` (JSON load/save + quarantine on corruption), `ProfileManager` (CRUD + `ApplyProfile`), `ProfileApplier` (per-step `TryStep` orchestration), `HotkeyParser`, `EqualizerPresets`, `CloseBehaviorResolver`, `StartupRegistrationService`.
+- **Services:** `ProfileStore` (JSON load/save + quarantine on corruption), `ProfileManager` (CRUD + `ApplyProfile`), `ProfileApplier` (per-step `TryStep` orchestration), `HotkeyParser`, `HotkeyRegistrar`, `EqualizerPresets`, `CloseBehaviorResolver`, `StartupRegistrationService` (owns `--startup` arg + `IsStartupLaunch`).
 - **Interfaces:** `IProfileStore`, `IProfileManager`, `IAudioDeviceService`, `IVolumeController`, `ISpatialAudioController`, `IHotkeyService`, `IRegistryStore`.
 
 ### AudioSwitch.Audio — platform
@@ -36,6 +36,7 @@ Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig
 - **`Services/HotkeyService.cs`** — `WM_HOTKEY` hook via `HwndSource`.
 - **`Services/TrayIconHost.cs`** — `TaskbarIcon` owner. Tooltip bound to active profile. Context menu: Show, Apply profile submenu, Start with Windows (checkable), Exit. Also handles the close-prompt flow when `MainWindow.Closing` fires.
 - **`Services/WindowsRegistryStore.cs`** — `Microsoft.Win32` impl of `IRegistryStore`.
+- **`Controls/ListBoxAssist.cs`** — attached `SelectedBorderBrush` property used by `MainWindow.xaml` row styles (avoids overloading `ListBox.Tag` for accent colors).
 - **`MainWindow.xaml`** — 4-column node-link UI (Outputs / Inputs / Equalizers / Link configs). Bezier curves overlay `LinkCanvas` connecting selections. Intercepts `Closing` and delegates to `TrayIconHost`.
 - **`Views/EqualizerEditorWindow.xaml`** — 10-band modal.
 - **`Views/NameEditorWindow.xaml`** — generic name prompt (rename / save-as).
