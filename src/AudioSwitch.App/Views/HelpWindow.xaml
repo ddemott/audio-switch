@@ -80,8 +80,11 @@
                 <StackPanel>
                     <TextBlock Style="{StaticResource HelpBody}">• Output / Input — Rename or Delete.</TextBlock>
                     <TextBlock Style="{StaticResource HelpBody}">• Equalizer — Edit 10 bands, rename via the dialog, or Delete.</TextBlock>
-                    <TextBlock Style="{StaticResource HelpBody}">• Link config — Rename or Delete.</TextBlock>
+                    <TextBlock Style="{StaticResource HelpBody}">• Link config — Rename, <Run FontWeight="SemiBold">Edit volumes...</Run>, or Delete.</TextBlock>
                 </StackPanel>
+                <TextBlock Style="{StaticResource HelpBody}">
+                    <Run FontWeight="SemiBold">Edit volumes...</Run> opens a slider per Output/Input device in that profile. Two profiles using the same speakers can have different volumes — "Late night" at 30%, "Movie" at 75%. Sliders left at the device's default value don't override anything.
+                </TextBlock>
                 <TextBlock Style="{StaticResource HelpBody}">
                     <Run FontWeight="SemiBold">Double-click</Run> an equalizer row to open the 10-band editor.
                 </TextBlock>

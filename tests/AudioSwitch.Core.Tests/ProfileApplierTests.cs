@@ -192,4 +192,118 @@ public sealed class ProfileApplierTests
         Assert.Empty(volume.SetVolumeCalls);
         Assert.Empty(spatial.SetModeCalls);
     }
+
+    // === Per-profile volume override ===
+
+    [Fact]
+    public void Apply_OutputVolumeOverride_UsesOverrideNotComponentDefault()
+    {
+        var (applier, _, volume, _) = Create();
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var profile = new AudioProfile
+        {
+            Name = "Late night",
+            ComponentIds = { output.Id },
+            ComponentVolumes = { [output.Id] = 30 },
+        };
+
+        applier.Apply(profile, library);
+
+        Assert.Equal(("spk", AudioDeviceDirection.Render, 30), Assert.Single(volume.SetVolumeCalls));
+    }
+
+    [Fact]
+    public void Apply_InputVolumeOverride_UsesOverrideNotComponentDefault()
+    {
+        var (applier, _, volume, _) = Create();
+        var input = new InputDeviceComponent { Name = "Mic", DeviceId = "mic", Volume = 60 };
+        var library = new ComponentLibrary();
+        library.Add(input);
+        var profile = new AudioProfile
+        {
+            Name = "Loud calls",
+            ComponentIds = { input.Id },
+            ComponentVolumes = { [input.Id] = 95 },
+        };
+
+        applier.Apply(profile, library);
+
+        Assert.Equal(("mic", AudioDeviceDirection.Capture, 95), Assert.Single(volume.SetVolumeCalls));
+    }
+
+    [Fact]
+    public void Apply_NoOverride_FallsBackToComponentDefaultVolume()
+    {
+        var (applier, _, volume, _) = Create();
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var profile = new AudioProfile { Name = "Default", ComponentIds = { output.Id } };
+
+        applier.Apply(profile, library);
+
+        Assert.Equal(("spk", AudioDeviceDirection.Render, 80), Assert.Single(volume.SetVolumeCalls));
+    }
+
+    [Fact]
+    public void Apply_TwoProfilesSameDeviceDifferentOverrides_SendDifferentVolumes()
+    {
+        var (applier, _, volume, _) = Create();
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var quiet = new AudioProfile
+        {
+            Name = "Quiet",
+            ComponentIds = { output.Id },
+            ComponentVolumes = { [output.Id] = 20 },
+        };
+        var loud = new AudioProfile
+        {
+            Name = "Loud",
+            ComponentIds = { output.Id },
+            ComponentVolumes = { [output.Id] = 100 },
+        };
+
+        applier.Apply(quiet, library);
+        applier.Apply(loud, library);
+
+        Assert.Equal(2, volume.SetVolumeCalls.Count);
+        Assert.Equal(20, volume.SetVolumeCalls[0].Volume);
+        Assert.Equal(100, volume.SetVolumeCalls[1].Volume);
+    }
+
+    /// <summary>
+    /// Sad path: ComponentVolumes contains an entry whose id is no longer in profile.ComponentIds (orphaned override).
+    /// Who: User edited the profile to drop a component but the volume override entry was left behind (cleanup not strict).
+    /// What: Orphan is silently ignored — no SetVolume call for the orphaned id, no error recorded.
+    /// Why: An override without the matching ComponentId is meaningless — there's no device step to attach it to. Surfacing it as an error would just be noise; the next profile-edit can prune it.
+    /// Where: ProfileApplier iterates components from ComponentIds only; ComponentVolumes is consulted as a lookup, never enumerated.
+    /// How: Override map contains an extra ghost id alongside the active one; only the active id results in a SetVolume call.
+    /// </summary>
+    [Fact]
+    public void Apply_OrphanedOverride_SilentlyIgnored()
+    {
+        var (applier, _, volume, _) = Create();
+        var output = new OutputDeviceComponent { Name = "Speakers", DeviceId = "spk", Volume = 80 };
+        var library = new ComponentLibrary();
+        library.Add(output);
+        var profile = new AudioProfile
+        {
+            Name = "Has orphan",
+            ComponentIds = { output.Id },
+            ComponentVolumes =
+            {
+                [output.Id] = 55,
+                ["ghost-deleted-id"] = 12,
+            },
+        };
+
+        var result = applier.Apply(profile, library);
+
+        Assert.True(result.IsFullSuccess);
+        Assert.Equal(("spk", AudioDeviceDirection.Render, 55), Assert.Single(volume.SetVolumeCalls));
+    }
 }

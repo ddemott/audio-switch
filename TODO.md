@@ -4,20 +4,6 @@ Deferred work, in rough priority order. Covers what's known but not yet implemen
 
 ---
 
-## Near-term
-
-### Per-profile volume editing — **blocked on data-model decision**
-Currently every auto-populated Output/Input component defaults to `Volume = 80`. Two profiles that share the same output device produce no audible change between them.
-
-Three possible shapes, not yet picked:
-1. **Volume on the profile itself** (`Profile.Overrides: componentId → volume`) — cleanest model, biggest refactor. Components stay reusable atoms; each profile overrides values as-needed.
-2. **New "Levels" column** — keeps the orthogonal-component model. User creates `VolumeComponent` entries and links them to profiles.
-3. **Lump onto `EqualizerComponent`** — smallest diff, ugly semantics (forces a flat-EQ entry every time you only want a volume tweak).
-
-Recommendation: option 1. Revisit when user is ready to commit to a shape.
-
----
-
 ## V2 roadmap (affects audio directly)
 
 ### Equalizer APO wiring
@@ -41,6 +27,8 @@ Done (shipped):
 - ~~**Single-source `--startup`** — `StartupRegistrationService.StartupArg` + `IsStartupLaunch(args)`; `Register` takes a raw path and formats the command line internally.~~
 - ~~**Rename Output/Input components** — right-click row → "Rename '...'..." reuses `NameEditorWindow`; persists via `UpdateComponent`.~~
 - ~~**Portable mode** — `Core/Services/PortableMode.cs` + `ProfileStore.DefaultFilePath(baseDir)` branch; `AppHost.IsPortable` short-circuits `SetStartWithWindows`; tray menu disables + main-window title suffix; `scripts/build-portable.ps1` publishes self-contained with `portable.flag`.~~
+- ~~**Per-profile volume editing** — `AudioProfile.ComponentVolumes` dict (override → component default); `ProfileApplier.ResolveVolume`; `ProfileVolumesWindow` modal with sliders per Output/Input; right-click profile → "Edit volumes...". 5 new applier tests.~~
+- ~~**In-app Help window** — `HelpWindow.xaml` opened from Help button (top-right) or F1 via `ApplicationCommands.Help`. Covers main-window layout, profile CRUD, hotkeys, tray, theme, portable mode, troubleshooting.~~
 
 Still open:
 - **`AudioSwitch.Audio.Tests` is empty.** Nothing concrete to test yet; re-evaluate when non-COM logic lands in that project.

@@ -223,6 +223,11 @@ public partial class MainWindow : Window
         rename.Click += (_, _) => PromptRenameProfile(profile);
         menu.Items.Add(rename);
 
+        var editVolumes = new MenuItem { Header = "Edit volumes..." };
+        editVolumes.Click += (_, _) => PromptEditProfileVolumes(profile);
+        editVolumes.IsEnabled = ProfileHasAdjustableComponents(profile);
+        menu.Items.Add(editVolumes);
+
         menu.Items.Add(new Separator());
 
         var delete = new MenuItem { Header = $"Delete '{profile.Name}'" };
@@ -234,6 +239,45 @@ public partial class MainWindow : Window
         menu.Items.Add(delete);
         menu.PlacementTarget = ProfilesListBox;
         menu.IsOpen = true;
+    }
+
+    private bool ProfileHasAdjustableComponents(AudioProfile profile)
+    {
+        if (_host is null) return false;
+        foreach (var id in profile.ComponentIds)
+        {
+            var c = _host.ProfileManager.Library.FindById(id);
+            if (c is OutputDeviceComponent or InputDeviceComponent) return true;
+        }
+        return false;
+    }
+
+    private void PromptEditProfileVolumes(AudioProfile profile)
+    {
+        if (_host is null) return;
+        var components = profile.ComponentIds
+            .Select(id => _host.ProfileManager.Library.FindById(id))
+            .Where(c => c is OutputDeviceComponent or InputDeviceComponent)
+            .Cast<Component>()
+            .ToList();
+        if (components.Count == 0)
+        {
+            StatusText.Text = $"Profile '{profile.Name}' has no Output or Input device to adjust.";
+            return;
+        }
+        var dialog = new ProfileVolumesWindow(profile, components) { Owner = this };
+        if (dialog.ShowDialog() == true && dialog.Saved)
+        {
+            try
+            {
+                _host.ProfileManager.UpdateProfile(profile);
+                StatusText.Text = $"Updated volumes for '{profile.Name}'.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                StatusText.Text = ex.Message;
+            }
+        }
     }
 
     // === Help ===

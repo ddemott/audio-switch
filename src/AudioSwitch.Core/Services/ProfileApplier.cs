@@ -34,22 +34,23 @@ internal sealed class ProfileApplier : IProfileApplier
 
         foreach (var output in outputs)
         {
-            ApplyOutput(output, spatials, errors);
+            ApplyOutput(profile, output, spatials, errors);
         }
         foreach (var input in inputs)
         {
-            ApplyInput(input, errors);
+            ApplyInput(profile, input, errors);
         }
 
         return new ProfileApplyResult(profile, errors);
     }
 
-    private void ApplyOutput(OutputDeviceComponent output, List<SpatialAudioComponent> spatials, List<ProfileApplyStepError> errors)
+    private void ApplyOutput(AudioProfile profile, OutputDeviceComponent output, List<SpatialAudioComponent> spatials, List<ProfileApplyStepError> errors)
     {
         TryStep(errors, "SetDefaultOutput", output.DeviceId, () =>
             _deviceService.SetDefault(output.DeviceId, AudioDeviceDirection.Render));
+        var volume = profile.ResolveVolume(output, output.Volume);
         TryStep(errors, "SetOutputVolume", output.DeviceId, () =>
-            _volumeController.SetVolume(output.DeviceId, AudioDeviceDirection.Render, output.Volume));
+            _volumeController.SetVolume(output.DeviceId, AudioDeviceDirection.Render, volume));
         foreach (var s in spatials)
         {
             TryStep(errors, "SetSpatialMode", output.DeviceId, () =>
@@ -57,12 +58,13 @@ internal sealed class ProfileApplier : IProfileApplier
         }
     }
 
-    private void ApplyInput(InputDeviceComponent input, List<ProfileApplyStepError> errors)
+    private void ApplyInput(AudioProfile profile, InputDeviceComponent input, List<ProfileApplyStepError> errors)
     {
         TryStep(errors, "SetDefaultInput", input.DeviceId, () =>
             _deviceService.SetDefault(input.DeviceId, AudioDeviceDirection.Capture));
+        var volume = profile.ResolveVolume(input, input.Volume);
         TryStep(errors, "SetInputVolume", input.DeviceId, () =>
-            _volumeController.SetVolume(input.DeviceId, AudioDeviceDirection.Capture, input.Volume));
+            _volumeController.SetVolume(input.DeviceId, AudioDeviceDirection.Capture, volume));
     }
 
     private static List<Component> ResolveAll(AudioProfile profile, ComponentLibrary library, List<ProfileApplyStepError> errors)

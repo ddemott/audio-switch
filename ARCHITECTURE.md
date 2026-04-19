@@ -41,6 +41,7 @@ Implementations that touch COM: `CoreAudioController` (MMDevice + `IPolicyConfig
 - **`Views/EqualizerEditorWindow.xaml`** — 10-band modal.
 - **`Views/NameEditorWindow.xaml`** — generic name prompt (rename / save-as).
 - **`Views/HelpWindow.xaml`** — in-app documentation modal (opened via Help button or F1).
+- **`Views/ProfileVolumesWindow.xaml`** — per-profile volume editor; one slider per Output/Input in the profile, writes overrides into `AudioProfile.ComponentVolumes`.
 - **`Views/CloseChoiceWindow.xaml`** — Minimize / Close / Cancel + "Don't ask again".
 - **`Themes/Dark.xaml` + `Light.xaml`** — resource dictionaries.
 - **`Assets/audio-switch.ico`** — multi-resolution tray / taskbar icon.
@@ -59,7 +60,12 @@ Profile = named bundle of `ComponentIds[]`. Components are stored once in `Compo
     "spatialModes": [{ "id": "guid", "name": "...", "mode": "DolbyAtmos" }]
   },
   "profiles": [
-    { "name": "Gaming", "hotkey": "Ctrl+Shift+1", "componentIds": ["guid", "guid"] }
+    {
+      "name": "Gaming",
+      "hotkey": "Ctrl+Shift+1",
+      "componentIds": ["guid", "guid"],
+      "componentVolumes": { "guid": 75 }
+    }
   ],
   "activeProfile": "Gaming",
   "themePreference": "System",
@@ -75,8 +81,10 @@ User → hotkey / double-click / tray menu
     → ProfileApplier.Apply(profile, library)
       → TryStep(SetDefault render)       ──► CoreAudioController (COM)
       → TryStep(SetDefault capture)      ──► CoreAudioController (COM)
-      → TryStep(SetVolume output)        ──► VolumeController (COM)
-      → TryStep(SetVolume input)         ──► VolumeController (COM)
+      → TryStep(SetVolume output, profile.ResolveVolume(output, output.Volume))
+                                         ──► VolumeController (COM)
+      → TryStep(SetVolume input, profile.ResolveVolume(input, input.Volume))
+                                         ──► VolumeController (COM)
       → TryStep(SetMode spatial)         ──► SpatialAudioController
     → returns ProfileApplyResult { Profile, Errors[] }
   → _data.ActiveProfile = name; store.Save(_data)
