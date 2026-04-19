@@ -173,7 +173,8 @@
                          ItemTemplate="{StaticResource ComponentRowTemplate}"
                          Tag="#60A5FA"
                          SelectionChanged="Selection_Changed"
-                         MouseRightButtonUp="Component_RightClick" />
+                         MouseRightButtonUp="Component_RightClick"
+                         MouseDoubleClick="EqualizersList_MouseDoubleClick" />
             </DockPanel>
 
             <!-- Col 4: Profiles (saved link configs) -->

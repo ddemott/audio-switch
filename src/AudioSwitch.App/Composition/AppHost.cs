@@ -1,6 +1,7 @@
 using AudioSwitch.App.Services;
 using AudioSwitch.Audio;
 using AudioSwitch.Core.Interfaces;
+using AudioSwitch.Core.Models;
 using AudioSwitch.Core.Services;
 
 namespace AudioSwitch.App.Composition;
@@ -19,8 +20,36 @@ public sealed class AppHost : IDisposable
         SpatialController = spatialController;
         HotkeyService = hotkeyService;
 
+        SyncHardwareToLibrary();
         RegisterAllHotkeys();
         ProfileManager.ProfilesChanged += (_, _) => RegisterAllHotkeys();
+    }
+
+    private void SyncHardwareToLibrary()
+    {
+        var knownOutputs = ProfileManager.Library.Outputs.Select(o => o.DeviceId).ToHashSet();
+        foreach (var device in DeviceService.GetDevices(AudioDeviceDirection.Render))
+        {
+            if (knownOutputs.Contains(device.Id)) continue;
+            ProfileManager.AddComponent(new OutputDeviceComponent
+            {
+                Name = device.Name,
+                DeviceId = device.Id,
+                Volume = 80,
+            });
+        }
+
+        var knownInputs = ProfileManager.Library.Inputs.Select(i => i.DeviceId).ToHashSet();
+        foreach (var device in DeviceService.GetDevices(AudioDeviceDirection.Capture))
+        {
+            if (knownInputs.Contains(device.Id)) continue;
+            ProfileManager.AddComponent(new InputDeviceComponent
+            {
+                Name = device.Name,
+                DeviceId = device.Id,
+                Volume = 80,
+            });
+        }
     }
 
     public IProfileStore ProfileStore { get; }

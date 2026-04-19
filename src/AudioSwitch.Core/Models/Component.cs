@@ -29,4 +29,27 @@ public sealed class SpatialAudioComponent : Component
 public sealed class EqualizerComponent : Component
 {
     public string ApoConfigPath { get; set; } = string.Empty;
+
+    public List<EqualizerBand> Bands { get; set; } = DefaultBands();
+
+    public static List<EqualizerBand> DefaultBands() => new()
+    {
+        new EqualizerBand { Frequency = 31 },
+        new EqualizerBand { Frequency = 62 },
+        new EqualizerBand { Frequency = 125 },
+        new EqualizerBand { Frequency = 250 },
+        new EqualizerBand { Frequency = 500 },
+        new EqualizerBand { Frequency = 1000 },
+        new EqualizerBand { Frequency = 2000 },
+        new EqualizerBand { Frequency = 4000 },
+        new EqualizerBand { Frequency = 8000 },
+        new EqualizerBand { Frequency = 16000 },
+    };
+}
+
+public sealed class EqualizerBand
+{
+    public int Frequency { get; set; }
+
+    public double Gain { get; set; }
 }

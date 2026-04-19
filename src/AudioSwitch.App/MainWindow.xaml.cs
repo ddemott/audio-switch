@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using AudioSwitch.App.Composition;
+using AudioSwitch.App.Views;
 using AudioSwitch.Core.Models;
 
 namespace AudioSwitch.App;
@@ -92,6 +93,15 @@ public partial class MainWindow : Window
         if (list.SelectedItem is not Component component) return;
 
         var menu = new ContextMenu();
+
+        if (component is EqualizerComponent eq)
+        {
+            var edit = new MenuItem { Header = $"Edit '{eq.Name}'..." };
+            edit.Click += (_, _) => OpenEqualizerEditor(eq);
+            menu.Items.Add(edit);
+            menu.Items.Add(new Separator());
+        }
+
         var delete = new MenuItem { Header = $"Delete '{component.Name}'" };
         delete.Click += (_, _) =>
         {
@@ -105,11 +115,29 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    private void OpenEqualizerEditor(EqualizerComponent eq)
+    {
+        if (_host is null) return;
+        var editor = new EqualizerEditorWindow(eq) { Owner = this };
+        if (editor.ShowDialog() == true && editor.Saved)
+        {
+            _host.ProfileManager.UpdateComponent(eq);
+            StatusText.Text = $"Updated '{eq.Name}'.";
+        }
+    }
+
     private void Profile_RightClick(object sender, MouseButtonEventArgs e)
     {
         if (_host is null || ProfilesListBox.SelectedItem is not AudioProfile profile) return;
 
         var menu = new ContextMenu();
+
+        var rename = new MenuItem { Header = $"Rename '{profile.Name}'..." };
+        rename.Click += (_, _) => PromptRenameProfile(profile);
+        menu.Items.Add(rename);
+
+        menu.Items.Add(new Separator());
+
         var delete = new MenuItem { Header = $"Delete '{profile.Name}'" };
         delete.Click += (_, _) =>
         {
@@ -121,7 +149,30 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    private void PromptRenameProfile(AudioProfile profile)
+    {
+        if (_host is null) return;
+        var dialog = new NameEditorWindow("Rename profile", "New profile name", profile.Name) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            _host.ProfileManager.RenameProfile(profile.Name, dialog.EnteredName);
+            StatusText.Text = $"Renamed to '{dialog.EnteredName}'.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusText.Text = ex.Message;
+        }
+    }
+
     // === Profile apply ===
+
+    private void EqualizersList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (EqualizersListBox.SelectedItem is not EqualizerComponent eq) return;
+        if (e.OriginalSource is DependencyObject src && FindAncestor<ListBoxItem>(src) is null) return;
+        OpenEqualizerEditor(eq);
+    }
 
     private void Profile_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {

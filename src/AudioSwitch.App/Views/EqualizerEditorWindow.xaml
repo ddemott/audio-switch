@@ -1,0 +1,52 @@
+<Window x:Class="AudioSwitch.App.Views.EqualizerEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit equalizer" Height="440" Width="720"
+        Background="#0D0F14" Foreground="#E5E7EB"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <DockPanel Margin="18">
+        <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,14">
+            <TextBlock Text="Name" VerticalAlignment="Center" Margin="0,0,10,0" />
+            <TextBox x:Name="NameBox" Background="#111827" Foreground="#E5E7EB"
+                     BorderBrush="#374151" BorderThickness="1" Padding="6,4" FontSize="14" />
+        </DockPanel>
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <Button x:Name="ResetButton" Content="Flat (0 dB)" Padding="12,6"
+                    Background="#1F2937" Foreground="#E5E7EB" BorderThickness="0"
+                    Click="ResetButton_Click" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
+                <Button x:Name="CancelButton" Content="Cancel" Padding="14,6" Margin="0,0,8,0"
+                        Background="#1F2937" Foreground="#E5E7EB" BorderThickness="0"
+                        Click="CancelButton_Click" />
+                <Button x:Name="OkButton" Content="Save" Padding="14,6" IsDefault="True"
+                        Background="#60A5FA" Foreground="#0B1020" BorderThickness="0" FontWeight="SemiBold"
+                        Click="OkButton_Click" />
+            </StackPanel>
+        </DockPanel>
+
+        <ItemsControl x:Name="BandList">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Rows="1" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <DockPanel LastChildFill="True" Margin="4,0">
+                        <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Center" Foreground="#60A5FA" FontSize="11"
+                                   Text="{Binding GainLabel, Mode=OneWay}" />
+                        <TextBlock DockPanel.Dock="Bottom" HorizontalAlignment="Center" Foreground="#9CA3AF" FontSize="11"
+                                   Text="{Binding FrequencyLabel, Mode=OneWay}" />
+                        <Slider Orientation="Vertical"
+                                Minimum="-12" Maximum="12" SmallChange="0.5" LargeChange="2" TickFrequency="3"
+                                TickPlacement="BottomRight"
+                                Value="{Binding Gain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Foreground="#60A5FA"
+                                Margin="0,6" />
+                    </DockPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </DockPanel>
+</Window>

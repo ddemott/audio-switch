@@ -18,11 +18,15 @@ public interface IProfileManager
 
     bool AddComponent(Component component);
 
+    bool UpdateComponent(Component component);
+
     bool RemoveComponent(string componentId);
 
     void AddProfile(AudioProfile profile);
 
     void UpdateProfile(AudioProfile profile);
+
+    void RenameProfile(string oldName, string newName);
 
     void RemoveProfile(string name);
 

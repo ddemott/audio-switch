@@ -49,6 +49,17 @@ public sealed class ProfileManager : IProfileManager
         return true;
     }
 
+    public bool UpdateComponent(Component component)
+    {
+        var existing = _data.Library.FindById(component.Id);
+        if (existing is null) return false;
+        _data.Library.Remove(component.Id);
+        _data.Library.Add(component);
+        _store.Save(_data);
+        LibraryChanged?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     public bool RemoveComponent(string componentId)
     {
         if (!_data.Library.Remove(componentId))
@@ -90,6 +101,29 @@ public sealed class ProfileManager : IProfileManager
             throw new InvalidOperationException($"Profile '{profile.Name}' not found.");
         }
         _data.Profiles[index] = profile;
+        PersistProfiles();
+    }
+
+    public void RenameProfile(string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            throw new InvalidOperationException("Profile name cannot be empty.");
+        }
+        newName = newName.Trim();
+        if (oldName == newName) return;
+
+        var profile = FindProfile(oldName)
+            ?? throw new InvalidOperationException($"Profile '{oldName}' not found.");
+        if (FindProfile(newName) is not null)
+        {
+            throw new InvalidOperationException($"Profile '{newName}' already exists.");
+        }
+        profile.Name = newName;
+        if (_data.ActiveProfile == oldName)
+        {
+            _data.ActiveProfile = newName;
+        }
         PersistProfiles();
     }
 

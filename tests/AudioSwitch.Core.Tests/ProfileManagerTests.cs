@@ -74,6 +74,45 @@ public sealed class ProfileManagerTests
     }
 
     [Fact]
+    public void UpdateComponent_PersistsEditsAndRaisesLibraryChanged()
+    {
+        var (manager, store, _, _, _) = CreateManager();
+        var eq = new EqualizerComponent { Name = "Flat" };
+        manager.AddComponent(eq);
+        eq.Name = "Heavy Bass";
+        eq.Bands[0].Gain = 6.0;
+        var raised = 0;
+        manager.LibraryChanged += (_, _) => raised++;
+
+        Assert.True(manager.UpdateComponent(eq));
+        var stored = Assert.Single(manager.Library.Equalizers);
+        Assert.Equal("Heavy Bass", stored.Name);
+        Assert.Equal(6.0, stored.Bands[0].Gain);
+        Assert.Equal(2, store.SaveCount); // one from Add, one from Update
+        Assert.Equal(1, raised);
+    }
+
+    /// <summary>
+    /// Sad path: UpdateComponent called for an id that isn't in the library.
+    /// Who: UI holding a stale component reference after another pane deleted it.
+    /// What: Returns false; no save, no LibraryChanged.
+    /// Why: Quiet no-op matches RemoveComponent semantics; avoids forcing the UI into try/catch.
+    /// Where: ProfileManager.UpdateComponent FindById null guard.
+    /// </summary>
+    [Fact]
+    public void UpdateComponent_UnknownId_ReturnsFalseNoSideEffects()
+    {
+        var (manager, store, _, _, _) = CreateManager();
+        var ghost = new EqualizerComponent { Name = "Ghost" };
+        var raised = 0;
+        manager.LibraryChanged += (_, _) => raised++;
+
+        Assert.False(manager.UpdateComponent(ghost));
+        Assert.Equal(0, store.SaveCount);
+        Assert.Equal(0, raised);
+    }
+
+    [Fact]
     public void RemoveComponent_AlsoStripsIdFromAllProfiles()
     {
         var (data, output, _) = BuildSeededData();
@@ -147,6 +186,37 @@ public sealed class ProfileManagerTests
         Assert.Equal("Gaming", manager.ActiveProfile?.Name);
         Assert.Equal("Gaming", store.Data.ActiveProfile);
         Assert.True(appliedArg?.IsFullSuccess);
+    }
+
+    [Fact]
+    public void RenameProfile_UpdatesNameAndPersists()
+    {
+        var (data, _, _) = BuildSeededData();
+        data.ActiveProfile = "Gaming";
+        var (manager, store, _, _, _) = CreateManager(data);
+        var raised = 0;
+        manager.ProfilesChanged += (_, _) => raised++;
+
+        manager.RenameProfile("Gaming", "Streaming");
+
+        Assert.Equal("Streaming", manager.Profiles.Single().Name);
+        Assert.Equal("Streaming", manager.ActiveProfile?.Name);
+        Assert.Equal(1, store.SaveCount);
+        Assert.Equal(1, raised);
+    }
+
+    [Fact]
+    public void RenameProfile_SameName_NoOps()
+    {
+        var (data, _, _) = BuildSeededData();
+        var (manager, store, _, _, _) = CreateManager(data);
+        var raised = 0;
+        manager.ProfilesChanged += (_, _) => raised++;
+
+        manager.RenameProfile("Gaming", "Gaming");
+
+        Assert.Equal(0, store.SaveCount);
+        Assert.Equal(0, raised);
     }
 
     // === Sad path ===
@@ -268,6 +338,58 @@ public sealed class ProfileManagerTests
 
         Assert.Equal(0, store.SaveCount);
         Assert.Equal(0, raised);
+    }
+
+    /// <summary>
+    /// Sad path: RenameProfile for a name that doesn't exist.
+    /// Who: UI holding a stale reference to a profile that was deleted in another pane.
+    /// What: Throws InvalidOperationException naming the missing profile.
+    /// Why: Silently inserting would mask the deletion; silently no-op'ing would hide a UI state bug.
+    /// Where: ProfileManager.RenameProfile FindProfile(oldName) null-coalesce-throw.
+    /// </summary>
+    [Fact]
+    public void RenameProfile_UnknownOldName_Throws()
+    {
+        var (manager, store, _, _, _) = CreateManager();
+
+        Assert.Throws<InvalidOperationException>(() => manager.RenameProfile("Ghost", "New"));
+        Assert.Equal(0, store.SaveCount);
+    }
+
+    /// <summary>
+    /// Sad path: RenameProfile to a name that collides with another existing profile.
+    /// Who: User typing a duplicate in the rename dialog.
+    /// What: Throws InvalidOperationException; profile is NOT renamed.
+    /// Why: Profile name is the unique key used by FindProfile / ApplyProfile / hotkey registration; collisions would corrupt lookup.
+    /// Where: ProfileManager.RenameProfile FindProfile(newName) not-null guard.
+    /// </summary>
+    [Fact]
+    public void RenameProfile_DuplicateNewName_Throws()
+    {
+        var (manager, store, _, _, _) = CreateManager();
+        manager.AddProfile(new AudioProfile { Name = "A" });
+        manager.AddProfile(new AudioProfile { Name = "B" });
+
+        Assert.Throws<InvalidOperationException>(() => manager.RenameProfile("A", "B"));
+        Assert.Equal("A", manager.Profiles[0].Name);
+    }
+
+    /// <summary>
+    /// Sad path: RenameProfile called with an empty or whitespace-only name.
+    /// Who: User hitting OK in the rename dialog without typing anything.
+    /// What: Throws InvalidOperationException; profile unchanged.
+    /// Why: Empty names are meaningless identifiers and would break every lookup.
+    /// Where: ProfileManager.RenameProfile IsNullOrWhiteSpace guard.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RenameProfile_EmptyNewName_Throws(string newName)
+    {
+        var (data, _, _) = BuildSeededData();
+        var (manager, _, _, _, _) = CreateManager(data);
+
+        Assert.Throws<InvalidOperationException>(() => manager.RenameProfile("Gaming", newName));
     }
 
     /// <summary>
